@@ -1,0 +1,18 @@
+SelfE Hackathon frontend/backend feature update
+
+Implemented:
+- SelfE Hackathon branding in authenticated shell, login and registration.
+- Removed workspace search control from the authenticated header.
+- Participant notification bell backed by published admin student messages.
+- Admin Student Messages page: create, publish, list and delete messages.
+- Student profile: edit display/full name only; other identity/academic fields remain read-only.
+- Registration fields are explicitly required in the browser for all student fields.
+- Participant mentor contact opens a modal showing mentor name, specialization, phone and email with close control.
+- Mentor API serialization now includes phone so participant contact information is available.
+- Existing team-member removal and mentor management flows preserved.
+- Added notification/admin message routes without changing the Prisma schema or Docker configuration.
+
+Verification:
+- All TypeScript/TSX files were syntactically transpiled with TypeScript's transpileModule: successful.
+- Full npm install/build could not be completed in the sandbox because npm registry access timed out.
+- PostgreSQL/Docker/Prisma schema files were not changed.

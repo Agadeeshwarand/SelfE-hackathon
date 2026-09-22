@@ -1,0 +1,372 @@
+// Hackathon Management Platform — Prisma schema
+// Covers the full data model from the spec (section 38) so later phases
+// (rounds, evaluation, shortlisting, certificates, audit log) don't require
+// destructive migrations. Only the Phase-1 entities (User, StudentProfile,
+// MentorProfile, Team, TeamMember) have working service/controller code
+// behind them right now — the rest are modeled and ready to be wired up.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MENTOR
+  TEAM_LEADER
+  TEAM_MEMBER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum RoundType {
+  IDEA_SUBMISSION
+  PROTOTYPE_SUBMISSION
+  SCREENING
+  TECHNICAL_CHALLENGE
+  PRESENTATION
+  FINAL_HACKATHON
+  CUSTOM
+}
+
+enum RoundStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  EVALUATED
+  SHORTLISTED
+  RESULTS_PUBLISHED
+}
+
+enum SubmissionStatus {
+  LOCKED
+  PENDING_MENTOR_APPROVAL
+  CHANGES_REQUESTED
+  MENTOR_APPROVED
+  OFFICIALLY_SUBMITTED
+}
+
+enum EvaluationStatus {
+  PENDING
+  SUBMITTED
+  REOPENED
+}
+
+enum ResultStatus {
+  DRAFT
+  READY_TO_PUBLISH
+  PUBLISHED
+}
+
+model Department {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  students StudentProfile[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studentProfile StudentProfile?
+  mentorProfile  MentorProfile?
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+
+  @@index([role])
+}
+
+model StudentProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName       String
+  registerNumber String   @unique
+  phone          String
+  gender         Gender
+  departmentId   String
+  department     Department @relation(fields: [departmentId], references: [id])
+  year           Int
+  college        String
+
+  teamMembership TeamMember?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MentorProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName       String
+  phone          String?
+  specialization String?
+  maxTeams       Int      @default(6)
+  minTeams       Int      @default(4)
+
+  guidanceAssignments   MentorGuidanceAssignment[]
+  evaluationAssignments EvaluationAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id                 String   @id @default(cuid())
+  teamCode           String   @unique // shareable join code
+  name               String
+  leaderId           String?  @unique
+  leader             TeamMember? @relation("TeamLeaderLink", fields: [leaderId], references: [id])
+
+  isEligible         Boolean  @default(false)
+  eligibilityDetails Json?    // { memberCount, femaleCount, distinctDepartments, reasons: [] }
+
+  members            TeamMember[] @relation("TeamMembers")
+  guidanceAssignment MentorGuidanceAssignment?
+  submissions        Submission[]
+  evaluationAssignments EvaluationAssignment[]
+  roundResults       RoundResult[]
+  shortlists         Shortlist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  studentId String   @unique
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Cascade)
+  isLeader  Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+
+  leaderOfTeam Team? @relation("TeamLeaderLink")
+
+  @@index([teamId])
+}
+
+model Hackathon {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  rounds    Round[]
+  createdAt DateTime @default(now())
+}
+
+model Round {
+  id                     String      @id @default(cuid())
+  hackathonId            String
+  hackathon              Hackathon   @relation(fields: [hackathonId], references: [id])
+  name                   String
+  roundNumber            Int
+  description            String?
+  startDate              DateTime
+  endDate                DateTime
+  roundType              RoundType
+  submissionRequired     Boolean     @default(true)
+  mentorApprovalRequired Boolean     @default(true)
+  evaluationRequired     Boolean     @default(true)
+  evaluationCriteria     EvaluationCriteria[]
+  maxShortlistCount      Int?
+  instructions           String?
+  fileRequirements       Json?
+  linkRequirements       Json?
+  status                 RoundStatus @default(DRAFT)
+
+  eligibility  RoundEligibility[]
+  submissions  Submission[]
+  evalAssign   EvaluationAssignment[]
+  results      RoundResult[]
+  shortlists   Shortlist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([hackathonId, roundNumber])
+}
+
+model RoundEligibility {
+  id      String @id @default(cuid())
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id])
+  teamId  String
+  manualOverride Boolean @default(false)
+
+  @@unique([roundId, teamId])
+}
+
+model Submission {
+  id            String            @id @default(cuid())
+  roundId       String
+  round         Round             @relation(fields: [roundId], references: [id])
+  teamId        String
+  team          Team              @relation(fields: [teamId], references: [id])
+  content       Json              // problem statement, solution, tech stack, links, etc.
+  status        SubmissionStatus  @default(LOCKED)
+  files         SubmissionFile[]
+  approval      MentorApproval?
+  submittedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([roundId, teamId])
+}
+
+model SubmissionFile {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fileKey      String     // storage key/path (S3-compatible)
+  fileName     String
+  fileType     String
+  fileSize     Int
+  uploadedAt   DateTime   @default(now())
+}
+
+model MentorGuidanceAssignment {
+  id         String   @id @default(cuid())
+  mentorId   String
+  mentor     MentorProfile @relation(fields: [mentorId], references: [id])
+  teamId     String   @unique
+  team       Team     @relation(fields: [teamId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@unique([mentorId, teamId])
+  @@index([mentorId])
+}
+
+model MentorApproval {
+  id           String   @id @default(cuid())
+  submissionId String   @unique
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  status       String   // APPROVED | CHANGES_REQUESTED
+  comments     String?
+  reviewedAt   DateTime @default(now())
+}
+
+model EvaluationAssignment {
+  id        String   @id @default(cuid())
+  roundId   String
+  round     Round    @relation(fields: [roundId], references: [id])
+  mentorId  String
+  mentor    MentorProfile @relation(fields: [mentorId], references: [id])
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  overrideSelfGuidedTeam Boolean @default(false)
+  evaluation Evaluation?
+
+  createdAt DateTime @default(now())
+
+  @@unique([roundId, mentorId, teamId])
+}
+
+model EvaluationCriteria {
+  id        String @id @default(cuid())
+  roundId   String
+  round     Round  @relation(fields: [roundId], references: [id])
+  name      String
+  maxScore  Int
+  scores    EvaluationScore[]
+}
+
+model Evaluation {
+  id                     String   @id @default(cuid())
+  evaluationAssignmentId String   @unique
+  evaluationAssignment   EvaluationAssignment @relation(fields: [evaluationAssignmentId], references: [id])
+  totalScore             Int
+  comments               String?
+  status                 EvaluationStatus @default(SUBMITTED)
+  scores                 EvaluationScore[]
+  submittedAt            DateTime @default(now())
+  reopenedAt             DateTime?
+}
+
+model EvaluationScore {
+  id           String   @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criteriaId   String
+  criteria     EvaluationCriteria @relation(fields: [criteriaId], references: [id])
+  score        Int
+}
+
+model RoundResult {
+  id        String   @id @default(cuid())
+  roundId   String
+  round     Round    @relation(fields: [roundId], references: [id])
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  totalScore Float
+  rank      Int?
+  status    ResultStatus @default(DRAFT)
+
+  @@unique([roundId, teamId])
+}
+
+model Shortlist {
+  id             String   @id @default(cuid())
+  roundId        String
+  round          Round    @relation(fields: [roundId], references: [id])
+  teamId         String
+  team           Team     @relation(fields: [teamId], references: [id])
+  manualOverride Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([roundId, teamId])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  audience    String   // ALL | MENTORS | ROUND:<id> | TEAM:<id>
+  priority    String   @default("NORMAL")
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model Certificate {
+  id        String   @id @default(cuid())
+  type      String   // PARTICIPATION | FINALIST | WINNER | MENTOR | JUDGE
+  ownerId   String   // userId
+  fileKey   String
+  issuedAt  DateTime @default(now())
+}
