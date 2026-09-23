@@ -11,7 +11,9 @@ export function errorHandler(
   if (err instanceof AppError) {
     return res.status(err.status).json({
       error: err.message,
-      details: err.details,
+      ...(err.details !== undefined
+        ? { details: err.details }
+        : {}),
     });
   }
 
@@ -23,9 +25,23 @@ export function errorHandler(
   }
 
   console.error("Unhandled error:", err);
-  return res.status(500).json({ error: "Internal server error" });
+
+  return res.status(500).json({
+    error: "Internal server error",
+  });
 }
 
-export function notFoundHandler(_req: Request, res: Response) {
-  res.status(404).json({ error: "Route not found" });
+export function notFoundHandler(
+  req: Request,
+  res: Response
+) {
+  console.warn(
+    `[404] ${req.method} ${req.originalUrl}`
+  );
+
+  return res.status(404).json({
+    error: "Route not found",
+    method: req.method,
+    path: req.originalUrl,
+  });
 }
