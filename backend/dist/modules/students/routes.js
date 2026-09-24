@@ -43,4 +43,5 @@ router.get("/me", (0, auth_1.requireRole)("TEAM_LEADER", "TEAM_MEMBER"), (0, asy
 router.patch("/me", (0, auth_1.requireRole)("TEAM_LEADER", "TEAM_MEMBER"), (0, asyncHandler_1.asyncHandler)(controller.updateMe));
 router.get("/", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.listStudents));
 router.get("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.getStudent));
+router.patch("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.updateStudent));
 exports.default = router;

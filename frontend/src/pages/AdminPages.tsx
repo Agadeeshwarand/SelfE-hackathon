@@ -28,18 +28,1424 @@ export function AdminDashboard() {
 }
 function MiniMetric({ label, value }: { label: string; value: any }) { return <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">{label}</p><p className="mt-1 text-lg font-extrabold">{value}</p></div>; }
 
+function StudentEditModal({
+  student,
+  onClose,
+  onSaved,
+}: {
+  student: any;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+
+  const [form, setForm] = useState({
+    fullName: student.fullName ?? "",
+    registerNumber: student.studentId ?? "",
+    email: student.email ?? "",
+    phone: student.phone ?? "",
+    gender: student.gender ?? "PREFER_NOT_TO_SAY",
+    department: student.department ?? "",
+    year: String(student.year ?? 1),
+    college: student.college ?? "",
+    isActive: Boolean(student.isActive),
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const updateField = (field: string, value: string | boolean) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const saveStudent = async () => {
+    setError("");
+
+    if (!form.fullName.trim()) {
+      setError("Student name is required.");
+      return;
+    }
+
+    if (!form.registerNumber.trim()) {
+      setError("Register number is required.");
+      return;
+    }
+
+    if (!form.email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+
+    if (!form.phone.trim()) {
+      setError("Phone number is required.");
+      return;
+    }
+
+    if (!form.department.trim()) {
+      setError("Department is required.");
+      return;
+    }
+
+    if (!form.college.trim()) {
+      setError("College name is required.");
+      return;
+    }
+
+    const year = Number(form.year);
+
+    if (!Number.isInteger(year) || year < 1 || year > 6) {
+      setError("Year must be between 1 and 6.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await api(`/students/${student.id}`, {
+        method: "PATCH",
+        body: {
+          fullName: form.fullName.trim(),
+          registerNumber: form.registerNumber.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          gender: form.gender,
+          department: form.department.trim(),
+          year,
+          college: form.college.trim(),
+          isActive: form.isActive,
+        },
+      });
+
+      toast.toast("Student details updated successfully");
+      onSaved();
+      onClose();
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Unable to update student.";
+
+      setError(message);
+      toast.toast(message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Edit student"
+      description="Update the student's registration and academic details."
+      onClose={onClose}
+    >
+      <div className="space-y-5">
+        {error && <ErrorState message={error} />}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name">
+            <Input
+              value={form.fullName}
+              onChange={(e) =>
+                updateField("fullName", e.target.value)
+              }
+              placeholder="Student full name"
+            />
+          </Field>
+
+          <Field label="Register number">
+            <Input
+              value={form.registerNumber}
+              onChange={(e) =>
+                updateField("registerNumber", e.target.value)
+              }
+              placeholder="Register number"
+            />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Email">
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) =>
+                updateField("email", e.target.value)
+              }
+              placeholder="student@example.com"
+            />
+          </Field>
+
+          <Field label="Phone">
+            <Input
+              value={form.phone}
+              onChange={(e) =>
+                updateField("phone", e.target.value)
+              }
+              placeholder="Phone number"
+            />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Gender">
+            <Select
+              value={form.gender}
+              onChange={(e) =>
+                updateField("gender", e.target.value)
+              }
+            >
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">
+                Prefer not to say
+              </option>
+            </Select>
+          </Field>
+
+          <Field label="Year">
+            <Select
+              value={form.year}
+              onChange={(e) =>
+                updateField("year", e.target.value)
+              }
+            >
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+              <option value="5">5th Year</option>
+              <option value="6">6th Year</option>
+            </Select>
+          </Field>
+
+          <Field label="Account status">
+            <Select
+              value={form.isActive ? "ACTIVE" : "INACTIVE"}
+              onChange={(e) =>
+                updateField(
+                  "isActive",
+                  e.target.value === "ACTIVE"
+                )
+              }
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </Select>
+          </Field>
+        </div>
+
+        <Field label="Department">
+          <Input
+            value={form.department}
+            onChange={(e) =>
+              updateField("department", e.target.value)
+            }
+            placeholder="Department"
+          />
+        </Field>
+
+        <Field label="College">
+          <Input
+            value={form.college}
+            onChange={(e) =>
+              updateField("college", e.target.value)
+            }
+            placeholder="College name"
+          />
+        </Field>
+
+        {student.team && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
+              Current team
+            </p>
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold text-slate-900">
+                  {student.team.name}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  {student.team.role === "TEAM_LEADER"
+                    ? "Team leader"
+                    : "Team member"}
+                </p>
+              </div>
+
+              <Badge
+                tone={
+                  student.team.isEligible
+                    ? "success"
+                    : "warning"
+                }
+              >
+                {student.team.isEligible
+                  ? "Eligible"
+                  : "Needs action"}
+              </Badge>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={saveStudent}
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <Spinner />
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={15} />
+                Save changes
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function EligibilityItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <span className="text-xs font-semibold text-slate-600">
+        {label}
+      </span>
+
+      {value ? (
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600">
+          <CheckCircle2 size={14} />
+          Passed
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600">
+          <AlertTriangle size={14} />
+          Needs action
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TeamManageModal({
+  teamId,
+  onClose,
+  onSaved,
+}: {
+  teamId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+
+  const [team, setTeam] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [teamName, setTeamName] = useState("");
+  const [selectedLeader, setSelectedLeader] = useState("");
+
+  const [studentSearch, setStudentSearch] = useState("");
+  const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  const [savingTeam, setSavingTeam] = useState(false);
+  const [memberAction, setMemberAction] = useState("");
+
+  const loadTeam = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await api<any>(`/teams/${teamId}`);
+
+      setTeam(result);
+      setTeamName(result.name ?? "");
+      setSelectedLeader(
+        result.leader?.studentId ??
+          result.members?.find((member: any) => member.isLeader)
+            ?.studentId ??
+          ""
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Unable to load team."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeam();
+  }, [teamId]);
+
+  const searchStudents = async () => {
+    if (!studentSearch.trim()) {
+      setAvailableStudents([]);
+      return;
+    }
+
+    setLoadingStudents(true);
+
+    try {
+      const result = await api<any>(
+        `/students?page=1&pageSize=10&hasTeam=false&search=${encodeURIComponent(
+          studentSearch.trim()
+        )}`
+      );
+
+      setAvailableStudents(result.items ?? []);
+    } catch (e) {
+      toast.toast(
+        e instanceof Error
+          ? e.message
+          : "Unable to search students.",
+        "error"
+      );
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const saveTeamDetails = async () => {
+    if (!team) return;
+
+    if (!teamName.trim()) {
+      toast.toast("Team name is required.", "error");
+      return;
+    }
+
+    if (!selectedLeader) {
+      toast.toast("Please select a team leader.", "error");
+      return;
+    }
+
+    setSavingTeam(true);
+
+    try {
+      await api(`/teams/${team.id}`, {
+        method: "PATCH",
+        body: {
+          name: teamName.trim(),
+          leaderStudentId: selectedLeader,
+        },
+      });
+
+      toast.toast("Team details updated successfully.");
+      await loadTeam();
+      onSaved();
+    } catch (e) {
+      toast.toast(
+        e instanceof Error
+          ? e.message
+          : "Unable to update team.",
+        "error"
+      );
+    } finally {
+      setSavingTeam(false);
+    }
+  };
+
+  const addMember = async (studentId: string) => {
+    if (!team) return;
+
+    setMemberAction(`add-${studentId}`);
+
+    try {
+      await api(`/teams/${team.id}/members`, {
+        method: "POST",
+        body: {
+          studentId,
+        },
+      });
+
+      toast.toast("Student added to the team.");
+
+      setStudentSearch("");
+      setAvailableStudents([]);
+
+      await loadTeam();
+      onSaved();
+    } catch (e) {
+      toast.toast(
+        e instanceof Error
+          ? e.message
+          : "Unable to add student.",
+        "error"
+      );
+    } finally {
+      setMemberAction("");
+    }
+  };
+
+  const removeMember = async (student: any) => {
+    if (!team) return;
+
+    if (student.isLeader && members.length > 1) {
+      toast.toast(
+        "Change the team leader before removing the current leader.",
+        "error"
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove ${student.fullName} from ${team.name}?`
+    );
+
+    if (!confirmed) return;
+
+    setMemberAction(`remove-${student.studentId}`);
+
+    try {
+      await api(
+        `/teams/${team.id}/members/${student.studentId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      toast.toast("Student removed from the team.");
+
+      await loadTeam();
+      onSaved();
+    } catch (e) {
+      toast.toast(
+        e instanceof Error
+          ? e.message
+          : "Unable to remove student.",
+        "error"
+      );
+    } finally {
+      setMemberAction("");
+    }
+  };
+
+  if (loading) {
+    return (
+      <Modal
+        title="Manage team"
+        description="Loading team information..."
+        onClose={onClose}
+      >
+        <div className="flex min-h-[220px] items-center justify-center">
+          <Spinner label="Loading team..." />
+        </div>
+      </Modal>
+    );
+  }
+
+  if (error || !team) {
+    return (
+      <Modal
+        title="Manage team"
+        onClose={onClose}
+      >
+        <ErrorState
+          message={error || "Team not found."}
+          onRetry={loadTeam}
+        />
+      </Modal>
+    );
+  }
+
+  const members = team.members ?? [];
+
+  return (
+    <Modal
+      title={`Manage ${team.name}`}
+      description={`Team code: ${team.teamCode}`}
+      onClose={onClose}
+    >
+      <div className="space-y-6">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
+              Members
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-slate-950">
+              {team.memberCount}/6
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
+              Female
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-slate-950">
+              {team.femaleCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
+              Departments
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-slate-950">
+              {team.departmentCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
+              Status
+            </p>
+            <div className="mt-2">
+              <Badge
+                tone={
+                  team.isEligible
+                    ? "success"
+                    : "warning"
+                }
+              >
+                {team.isEligible
+                  ? "Eligible"
+                  : team.status === "FORMING"
+                  ? "Forming"
+                  : "Needs action"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-extrabold text-slate-900">
+                Eligibility
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Team formation rules are calculated by the backend.
+              </p>
+            </div>
+
+            <Badge
+              tone={
+                team.isEligible
+                  ? "success"
+                  : "warning"
+              }
+            >
+              {team.isEligible
+                ? "All rules satisfied"
+                : "Needs action"}
+            </Badge>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <EligibilityItem
+              label="Exactly 6 members"
+              value={team.memberCount === 6}
+            />
+
+            <EligibilityItem
+              label="At least 1 female member"
+              value={team.femaleCount >= 1}
+            />
+
+            <EligibilityItem
+              label="At least 3 departments"
+              value={team.departmentCount >= 3}
+            />
+
+            <EligibilityItem
+              label="All members registered"
+              value={
+                team.eligibility?.allRegistered ??
+                team.members?.every(
+                  (member: any) => member.isRegistered !== false
+                ) ??
+                true
+              }
+            />
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-5">
+          <div className="mb-4">
+            <h3 className="font-extrabold text-slate-900">
+              Team details
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Update the team name or change the team leader.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Team name">
+              <Input
+                value={teamName}
+                onChange={(e) =>
+                  setTeamName(e.target.value)
+                }
+              />
+            </Field>
+
+            <Field label="Team leader">
+              <Select
+                value={selectedLeader}
+                onChange={(e) =>
+                  setSelectedLeader(e.target.value)
+                }
+              >
+                <option value="">
+                  Select team leader
+                </option>
+
+                {members.map((member: any) => (
+                  <option
+                    key={member.studentId}
+                    value={member.studentId}
+                  >
+                    {member.fullName} —{" "}
+                    {member.registerNumber}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="secondary"
+              onClick={saveTeamDetails}
+              disabled={savingTeam}
+            >
+              {savingTeam ? (
+                <>
+                  <Spinner />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={15} />
+                  Save team details
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <div className="border-b border-slate-200 p-5">
+            <h3 className="font-extrabold text-slate-900">
+              Current members
+            </h3>
+
+            <p className="mt-1 text-xs text-slate-500">
+              {members.length} of 6 member slots are currently used.
+            </p>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {members.length ? (
+              members.map((member: any) => (
+                <div
+                  key={member.studentId}
+                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-slate-900">
+                        {member.fullName}
+                      </p>
+
+                      {member.isLeader && (
+                        <Badge tone="info">
+                          <UserCheck size={12} />
+                          Leader
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                      <span>{member.registerNumber}</span>
+                      <span>{member.department}</span>
+                      <span>{member.email}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    disabled={
+                      Boolean(memberAction) ||
+                      (member.isLeader && members.length > 1)
+                    }
+                    onClick={() => removeMember(member)}
+                  >
+                    {memberAction ===
+                    `remove-${member.studentId}` ? (
+                      <Spinner />
+                    ) : (
+                      <>
+                        <UserX size={14} />
+                        Remove
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-sm text-slate-500">
+                No members found for this team.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {members.length < 6 && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
+            <div>
+              <h3 className="font-extrabold text-slate-900">
+                Add registered student
+              </h3>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Search students who are currently not part of any team.
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <Search
+                  size={16}
+                  className="absolute left-3.5 top-3.5 text-slate-400"
+                />
+
+                <Input
+                  className="pl-10"
+                  value={studentSearch}
+                  onChange={(e) =>
+                    setStudentSearch(e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      searchStudents();
+                    }
+                  }}
+                  placeholder="Search name, register number or email"
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={searchStudents}
+                disabled={loadingStudents}
+              >
+                {loadingStudents ? (
+                  <Spinner />
+                ) : (
+                  <Search size={15} />
+                )}
+                Search
+              </Button>
+            </div>
+
+            {availableStudents.length > 0 && (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                {availableStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    className="flex flex-col gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        {student.fullName}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {student.studentId} ·{" "}
+                        {student.department} ·{" "}
+                        {student.email}
+                      </p>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={Boolean(memberAction)}
+                      onClick={() =>
+                        addMember(student.id)
+                      }
+                    >
+                      {memberAction ===
+                      `add-${student.id}` ? (
+                        <Spinner />
+                      ) : (
+                        <Plus size={14} />
+                      )}
+                      Add
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!loadingStudents &&
+              studentSearch.trim() &&
+              availableStudents.length === 0 && (
+                <p className="mt-4 text-center text-xs text-slate-500">
+                  No unassigned registered students found.
+                </p>
+              )}
+          </div>
+        )}
+
+        {members.length >= 6 && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+            <p className="font-bold">Team is full</p>
+            <p className="mt-1 text-xs">
+              This team already has 6 members. Remove a member before
+              adding another student.
+            </p>
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <Handshake size={18} />
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-slate-900">
+                Guidance mentor
+              </h3>
+
+              {team.mentor ? (
+                <>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {team.mentor.fullName}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {team.mentor.specialization ||
+                      "Guidance mentor"}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {team.mentor.email}
+                    {team.mentor.phone
+                      ? ` · ${team.mentor.phone}`
+                      : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-slate-500">
+                  No mentor assigned yet.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end border-t border-slate-100 pt-5">
+          <Button
+            variant="outline"
+            onClick={onClose}
+          >
+            Close
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function StudentsPage() {
-  const [data, setData] = useState<any>(null); const [q, setQ] = useState(""); const [draft, setDraft] = useState(""); const [page, setPage] = useState(1); const [error, setError] = useState("");
-  const load = async (targetPage = page, search = q) => { setError(""); try { setData(await api<any>(`/students?page=${targetPage}&pageSize=12&search=${encodeURIComponent(search)}`)); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load students"); } };
-  useEffect(() => { load(page, q); }, [page]);
-  return <div><SectionHeader eyebrow="Directory" title="Student directory" description="Search registrations, academic details and current team membership."/><Card className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row"><div className="relative flex-1"><Search size={16} className="absolute left-3.5 top-3.5 text-slate-400"/><Input className="pl-10" placeholder="Name, register number or email" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && (setPage(1), setQ(draft), load(1, draft))}/></div><Button variant="outline" onClick={() => { setPage(1); setQ(draft); load(1, draft); }}><Search size={15}/>Search</Button></div>{error ? <div className="p-5"><ErrorState message={error} onRetry={() => load(page, q)}/></div> : !data ? <div className="p-12"><Spinner label="Loading students…"/></div> : data.items?.length ? <><Table><thead><tr><Th>Student</Th><Th>Department</Th><Th>Year</Th><Th>Team</Th><Th>Status</Th></tr></thead><tbody>{data.items.map((s: any) => <tr key={s.id}><Td><p className="font-bold text-slate-900">{s.fullName}</p><p className="mt-1 text-xs text-slate-400">{s.studentId} · {s.email}</p></Td><Td><span className="font-semibold">{s.department}</span></Td><Td>{s.year}</Td><Td>{s.team ? <><p className="font-semibold text-slate-800">{s.team.name}</p><p className="mt-1 text-[11px] text-slate-400">{s.team.role === "TEAM_LEADER" ? "Team leader" : "Team member"}</p></> : <span className="text-slate-400">Not in a team</span>}</Td><Td><Badge tone={s.team ? (s.team.isEligible ? "success" : "warning") : "neutral"}>{s.team ? (s.team.isEligible ? "Eligible team" : "Team forming") : "Unassigned"}</Badge></Td></tr>)}</tbody></Table><Pager page={data.page} pages={data.pageCount} onChange={setPage}/></> : <EmptyState title="No students found" description="Try a different name, register number or email."/>}</Card></div>;
+  const [data, setData] = useState<any>(null);
+  const [q, setQ] = useState("");
+  const [draft, setDraft] = useState("");
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState("");
+  const [editingStudent, setEditingStudent] = useState<any>(null);
+
+  const load = async (
+    targetPage = page,
+    search = q
+  ) => {
+    setError("");
+
+    try {
+      const result = await api<any>(
+        `/students?page=${targetPage}&pageSize=12&search=${encodeURIComponent(
+          search
+        )}`
+      );
+
+      setData(result);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Unable to load students"
+      );
+    }
+  };
+
+  useEffect(() => {
+    load(page, q);
+  }, [page]);
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Directory"
+        title="Student directory"
+        description="Search registrations, academic details and current team membership."
+      />
+
+      <Card className="overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row">
+          <div className="relative flex-1">
+            <Search
+              size={16}
+              className="absolute left-3.5 top-3.5 text-slate-400"
+            />
+
+            <Input
+              className="pl-10"
+              placeholder="Name, register number or email"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setPage(1);
+                  setQ(draft);
+                  load(1, draft);
+                }
+              }}
+            />
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPage(1);
+              setQ(draft);
+              load(1, draft);
+            }}
+          >
+            <Search size={15} />
+            Search
+          </Button>
+        </div>
+
+        {error ? (
+          <div className="p-5">
+            <ErrorState
+              message={error}
+              onRetry={() => load(page, q)}
+            />
+          </div>
+        ) : !data ? (
+          <div className="p-12">
+            <Spinner label="Loading students..." />
+          </div>
+        ) : data.items?.length ? (
+          <>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Student</Th>
+                  <Th>Department</Th>
+                  <Th>Year</Th>
+                  <Th>Team</Th>
+                  <Th>Status</Th>
+                  <Th>Action</Th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {data.items.map((s: any) => (
+                  <tr key={s.id}>
+                    <Td>
+                      <p className="font-bold text-slate-900">
+                        {s.fullName}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-400">
+                        {s.studentId} · {s.email}
+                      </p>
+                    </Td>
+
+                    <Td>
+                      <span className="font-semibold">
+                        {s.department}
+                      </span>
+                    </Td>
+
+                    <Td>{s.year}</Td>
+
+                    <Td>
+                      {s.team ? (
+                        <>
+                          <p className="font-semibold text-slate-800">
+                            {s.team.name}
+                          </p>
+
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            {s.team.role === "TEAM_LEADER"
+                              ? "Team leader"
+                              : "Team member"}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">
+                          Not in a team
+                        </span>
+                      )}
+                    </Td>
+
+                    <Td>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge
+                          tone={
+                            s.team
+                              ? s.team.isEligible
+                                ? "success"
+                                : "warning"
+                              : "neutral"
+                          }
+                        >
+                          {s.team
+                            ? s.team.isEligible
+                              ? "Eligible team"
+                              : "Team forming"
+                            : "Unassigned"}
+                        </Badge>
+
+                        <Badge
+                          tone={
+                            s.isActive
+                              ? "success"
+                              : "danger"
+                          }
+                        >
+                          {s.isActive
+                            ? "Active"
+                            : "Inactive"}
+                        </Badge>
+                      </div>
+                    </Td>
+
+                    <Td>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setEditingStudent(s)
+                        }
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </Button>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+
+            <Pager
+              page={data.page}
+              pages={data.pageCount}
+              onChange={setPage}
+            />
+          </>
+        ) : (
+          <EmptyState
+            title="No students found"
+            description="Try a different name, register number or email."
+          />
+        )}
+      </Card>
+
+      {editingStudent && (
+        <StudentEditModal
+          student={editingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSaved={() => load(page, q)}
+        />
+      )}
+    </div>
+  );
 }
 
 export function TeamsPage() {
-  const [data, setData] = useState<any>(null); const [q, setQ] = useState(""); const [draft, setDraft] = useState(""); const [eligible, setEligible] = useState(""); const [page, setPage] = useState(1); const [error, setError] = useState("");
-  const load = async (targetPage = page, search = q, eligibility = eligible) => { setError(""); try { setData(await api<any>(`/teams?page=${targetPage}&pageSize=12&search=${encodeURIComponent(search)}${eligibility ? `&eligible=${eligibility}` : ""}`)); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load teams"); } };
-  useEffect(() => { load(page, q, eligible); }, [page, eligible]);
-  return <div><SectionHeader eyebrow="Team operations" title="Teams" description="Review formation rules, departments and mentor coverage."/><Card className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-slate-100 p-5 lg:flex-row"><div className="relative flex-1"><Search size={16} className="absolute left-3.5 top-3.5 text-slate-400"/><Input className="pl-10" placeholder="Search team name or code" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && (setPage(1), setQ(draft), load(1, draft, eligible))}/></div><Select className="lg:w-48" value={eligible} onChange={e => { setPage(1); setEligible(e.target.value); }}><option value="">All eligibility</option><option value="true">Eligible</option><option value="false">Needs action</option></Select><Button variant="outline" onClick={() => { setPage(1); setQ(draft); load(1, draft, eligible); }}><Filter size={15}/>Apply filters</Button></div>{error ? <div className="p-5"><ErrorState message={error} onRetry={() => load(page, q, eligible)}/></div> : !data ? <div className="p-12"><Spinner label="Loading teams…"/></div> : data.items?.length ? <><Table><thead><tr><Th>Team</Th><Th>Members</Th><Th>Eligibility</Th><Th>Mentor</Th><Th>Departments</Th></tr></thead><tbody>{data.items.map((t: any) => <tr key={t.id}><Td><p className="font-bold">{t.name}</p><p className="mt-1 font-mono text-[11px] text-slate-400">{t.teamCode}</p></Td><Td><span className="font-bold">{t.memberCount}</span><span className="text-slate-400">/6</span></Td><Td><Badge tone={t.isEligible ? "success" : "warning"}>{t.isEligible ? "Eligible" : t.status === "FORMING" ? "Forming" : "Needs action"}</Badge></Td><Td>{t.mentor ? <><p className="font-semibold">{t.mentor.fullName}</p><p className="mt-1 text-[11px] text-slate-400">{t.mentor.specialization || "Guidance mentor"}</p></> : <span className="text-slate-400">Unassigned</span>}</Td><Td><div className="flex flex-wrap gap-1.5">{(t.departments ?? []).map((d: string) => <span key={d} className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{d}</span>)}</div></Td></tr>)}</tbody></Table><Pager page={data.page} pages={data.pageCount} onChange={setPage}/></> : <EmptyState title="No teams found" description="Try a different search or eligibility filter."/>}</Card></div>;
+  const [data, setData] = useState<any>(null);
+  const [q, setQ] = useState("");
+  const [draft, setDraft] = useState("");
+  const [eligible, setEligible] = useState("");
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState("");
+  const [managingTeam, setManagingTeam] = useState<string | null>(null);
+
+  const load = async (
+    targetPage = page,
+    search = q,
+    eligibility = eligible
+  ) => {
+    setError("");
+
+    try {
+      const result = await api<any>(
+        `/teams?page=${targetPage}&pageSize=12&search=${encodeURIComponent(
+          search
+        )}${
+          eligibility
+            ? `&eligible=${eligibility}`
+            : ""
+        }`
+      );
+
+      setData(result);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Unable to load teams"
+      );
+    }
+  };
+
+  useEffect(() => {
+    load(page, q, eligible);
+  }, [page, eligible]);
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Team operations"
+        title="Teams"
+        description="Review formation rules, departments and mentor coverage."
+      />
+
+      <Card className="overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-5 lg:flex-row">
+          <div className="relative flex-1">
+            <Search
+              size={16}
+              className="absolute left-3.5 top-3.5 text-slate-400"
+            />
+
+            <Input
+              className="pl-10"
+              placeholder="Search team name or code"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setPage(1);
+                  setQ(draft);
+                  load(1, draft, eligible);
+                }
+              }}
+            />
+          </div>
+
+          <Select
+            className="lg:w-48"
+            value={eligible}
+            onChange={(e) => {
+              setPage(1);
+              setEligible(e.target.value);
+            }}
+          >
+            <option value="">All eligibility</option>
+            <option value="true">Eligible</option>
+            <option value="false">Needs action</option>
+          </Select>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setPage(1);
+              setQ(draft);
+              load(1, draft, eligible);
+            }}
+          >
+            <Filter size={15} />
+            Apply filters
+          </Button>
+        </div>
+
+        {error ? (
+          <div className="p-5">
+            <ErrorState
+              message={error}
+              onRetry={() =>
+                load(page, q, eligible)
+              }
+            />
+          </div>
+        ) : !data ? (
+          <div className="p-12">
+            <Spinner label="Loading teams..." />
+          </div>
+        ) : data.items?.length ? (
+          <>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Team</Th>
+                  <Th>Members</Th>
+                  <Th>Eligibility</Th>
+                  <Th>Mentor</Th>
+                  <Th>Departments</Th>
+                  <Th>Action</Th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {data.items.map((t: any) => (
+                  <tr key={t.id}>
+                    <Td>
+                      <p className="font-bold">
+                        {t.name}
+                      </p>
+
+                      <p className="mt-1 font-mono text-[11px] text-slate-400">
+                        {t.teamCode}
+                      </p>
+                    </Td>
+
+                    <Td>
+                      <span className="font-bold">
+                        {t.memberCount}
+                      </span>
+
+                      <span className="text-slate-400">
+                        /6
+                      </span>
+                    </Td>
+
+                    <Td>
+                      <div className="space-y-2">
+                        <Badge
+                          tone={
+                            t.isEligible
+                              ? "success"
+                              : "warning"
+                          }
+                        >
+                          {t.isEligible
+                            ? "Eligible"
+                            : t.status === "FORMING"
+                            ? "Forming"
+                            : "Needs action"}
+                        </Badge>
+
+                        <p className="text-[11px] text-slate-400">
+                          {t.femaleCount ?? 0} female ·{" "}
+                          {t.departmentCount ?? 0} departments
+                        </p>
+                      </div>
+                    </Td>
+
+                    <Td>
+                      {t.mentor ? (
+                        <>
+                          <p className="font-semibold">
+                            {t.mentor.fullName}
+                          </p>
+
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            {t.mentor.specialization ||
+                              "Guidance mentor"}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">
+                          Unassigned
+                        </span>
+                      )}
+                    </Td>
+
+                    <Td>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(t.departments ?? []).map(
+                          (d: string) => (
+                            <span
+                              key={d}
+                              className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600"
+                            >
+                              {d}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </Td>
+
+                    <Td>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setManagingTeam(t.id)
+                        }
+                      >
+                        <Users size={14} />
+                        Manage
+                      </Button>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+
+            <Pager
+              page={data.page}
+              pages={data.pageCount}
+              onChange={setPage}
+            />
+          </>
+        ) : (
+          <EmptyState
+            title="No teams found"
+            description="Try a different search or eligibility filter."
+          />
+        )}
+      </Card>
+
+      {managingTeam && (
+        <TeamManageModal
+          teamId={managingTeam}
+          onClose={() => setManagingTeam(null)}
+          onSaved={() => load(page, q, eligible)}
+        />
+      )}
+    </div>
+  );
 }
 
 export function MentorsPage() {

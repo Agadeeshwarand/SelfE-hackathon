@@ -44,5 +44,7 @@ router.post("/", (0, auth_1.requireRole)("TEAM_LEADER", "TEAM_MEMBER"), (0, asyn
 router.post("/join", (0, auth_1.requireRole)("TEAM_LEADER", "TEAM_MEMBER"), (0, asyncHandler_1.asyncHandler)(controller.joinTeam));
 router.get("/", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.listTeams));
 router.get("/:id", (0, asyncHandler_1.asyncHandler)(controller.getTeam));
+router.patch("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.updateTeam));
+router.post("/:id/members", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.addMember));
 router.delete("/:id/members/:studentId", (0, asyncHandler_1.asyncHandler)(controller.removeMember));
 exports.default = router;

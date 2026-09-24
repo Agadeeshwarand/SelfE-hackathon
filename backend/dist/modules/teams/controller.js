@@ -38,11 +38,11 @@ exports.joinTeam = joinTeam;
 exports.getMyTeam = getMyTeam;
 exports.listTeams = listTeams;
 exports.getTeam = getTeam;
+exports.updateTeam = updateTeam;
+exports.addMember = addMember;
 exports.removeMember = removeMember;
-exports.requireTeamId = requireTeamId;
 const validation_1 = require("./validation");
 const teamService = __importStar(require("./service"));
-const AppError_1 = require("../../utils/AppError");
 async function createTeam(req, res) {
     const input = validation_1.createTeamSchema.parse(req.body);
     const team = await teamService.createTeam(req.auth.userId, input);
@@ -65,12 +65,15 @@ async function getTeam(req, res) {
     const team = await teamService.getTeamById(req.params.id, req.auth);
     res.status(200).json(team);
 }
+async function updateTeam(req, res) {
+    const team = await teamService.updateTeam(req.params.id, req.body);
+    res.status(200).json(team);
+}
+async function addMember(req, res) {
+    const team = await teamService.addMember(req.params.id, req.body);
+    res.status(200).json(team);
+}
 async function removeMember(req, res) {
     const result = await teamService.removeMember(req.auth, req.params.id, req.params.studentId);
     res.status(200).json(result);
-}
-async function requireTeamId(req, _res, next) {
-    if (!req.params.id)
-        throw new AppError_1.AppError(400, "Team id is required");
-    next();
 }
