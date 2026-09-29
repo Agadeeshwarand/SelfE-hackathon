@@ -982,189 +982,6 @@ function TeamManageModal({
   );
 }
 
-function StudentCreateModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const [form, setForm] = useState({
-    fullName: "",
-    registerNumber: "",
-    email: "",
-    phone: "",
-    gender: "MALE",
-    department: "CSE",
-    year: "1",
-    college: "Sri Eshwar College Of Engineering",
-    password: "",
-  });
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    if (!form.fullName.trim() || !form.registerNumber.trim() || !form.email.trim() || !form.phone.trim()) {
-      setError("Please fill all required student details.");
-      return;
-    }
-
-    if (!form.password || form.password.length < 8) {
-      setError("Password must contain at least 8 characters.");
-      return;
-    }
-
-    setBusy(true);
-
-    try {
-      await api("/students", {
-        method: "POST",
-        body: {
-          fullName: form.fullName.trim(),
-          registerNumber: form.registerNumber.trim(),
-          email: form.email.trim().toLowerCase(),
-          phone: form.phone.trim(),
-          gender: form.gender,
-          department: form.department.trim(),
-          year: Number(form.year),
-          college: form.college.trim(),
-          password: form.password,
-        },
-      });
-
-      onCreated();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create student.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal
-      title="Add student"
-      description="Create a student account manually from the admin workspace."
-      onClose={onClose}
-    >
-      <form onSubmit={submit} className="space-y-5">
-        {error && <ErrorState message={error} />}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Full name">
-            <Input
-              required
-              value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              placeholder="Student full name"
-            />
-          </Field>
-
-          <Field label="Register number">
-            <Input
-              required
-              value={form.registerNumber}
-              onChange={(e) => setForm({ ...form, registerNumber: e.target.value })}
-              placeholder="Register number"
-            />
-          </Field>
-
-          <Field label="Email">
-            <Input
-              required
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="student@example.com"
-            />
-          </Field>
-
-          <Field label="Phone">
-            <Input
-              required
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="Phone number"
-            />
-          </Field>
-
-          <Field label="Gender">
-            <Select
-              value={form.gender}
-              onChange={(e) => setForm({ ...form, gender: e.target.value })}
-            >
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
-              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-            </Select>
-          </Field>
-
-          <Field label="Department">
-            <Input
-              required
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              placeholder="CSE"
-            />
-          </Field>
-
-          <Field label="Year">
-            <Select
-              value={form.year}
-              onChange={(e) => setForm({ ...form, year: e.target.value })}
-            >
-              <option value="1">1st Year</option>
-              <option value="2">2nd Year</option>
-              <option value="3">3rd Year</option>
-              <option value="4">4th Year</option>
-              <option value="5">5th Year</option>
-              <option value="6">6th Year</option>
-            </Select>
-          </Field>
-
-          <Field label="College">
-            <Input
-              required
-              value={form.college}
-              onChange={(e) => setForm({ ...form, college: e.target.value })}
-            />
-          </Field>
-        </div>
-
-        <Field label="Password" hint="Minimum 8 characters.">
-          <Input
-            required
-            type="password"
-            minLength={8}
-            maxLength={72}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder="Temporary student password"
-          />
-        </Field>
-
-        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <p className="text-xs leading-5 text-slate-500">
-            The password is sent to the backend and should be securely hashed before being stored.
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={busy}>
-            {busy ? <><Spinner />Creating...</> : <><Plus size={15} />Create student</>}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
 export function StudentsPage() {
   const [data, setData] = useState<any>(null);
   const [q, setQ] = useState("");
@@ -1172,19 +989,27 @@ export function StudentsPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  const [creatingStudent, setCreatingStudent] = useState(false);
-  const [deletingStudent, setDeletingStudent] = useState<any>(null);
-  const toast = useToast();
 
-  const load = async (targetPage = page, search = q) => {
+  const load = async (
+    targetPage = page,
+    search = q
+  ) => {
     setError("");
+
     try {
       const result = await api<any>(
-        `/students?page=${targetPage}&pageSize=12&search=${encodeURIComponent(search)}`
+        `/students?page=${targetPage}&pageSize=12&search=${encodeURIComponent(
+          search
+        )}`
       );
+
       setData(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load students");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Unable to load students"
+      );
     }
   };
 
@@ -1192,37 +1017,22 @@ export function StudentsPage() {
     load(page, q);
   }, [page]);
 
-  async function deleteStudent() {
-    if (!deletingStudent) return;
-
-    try {
-      await api(`/students/${deletingStudent.id}`, { method: "DELETE" });
-      toast.toast("Student deleted successfully");
-      setDeletingStudent(null);
-      await load(page, q);
-    } catch (e) {
-      toast.toast(e instanceof Error ? e.message : "Unable to delete student", "error");
-    }
-  }
-
   return (
     <div>
       <SectionHeader
         eyebrow="Directory"
         title="Student directory"
         description="Search registrations, academic details and current team membership."
-        action={
-          <Button onClick={() => setCreatingStudent(true)}>
-            <Plus size={16} />
-            Add student
-          </Button>
-        }
       />
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+            <Search
+              size={16}
+              className="absolute left-3.5 top-3.5 text-slate-400"
+            />
+
             <Input
               className="pl-10"
               placeholder="Name, register number or email"
@@ -1253,7 +1063,10 @@ export function StudentsPage() {
 
         {error ? (
           <div className="p-5">
-            <ErrorState message={error} onRetry={() => load(page, q)} />
+            <ErrorState
+              message={error}
+              onRetry={() => load(page, q)}
+            />
           </div>
         ) : !data ? (
           <div className="p-12">
@@ -1272,31 +1085,58 @@ export function StudentsPage() {
                   <Th>Action</Th>
                 </tr>
               </thead>
+
               <tbody>
                 {data.items.map((s: any) => (
                   <tr key={s.id}>
                     <Td>
-                      <p className="font-bold text-slate-900">{s.fullName}</p>
-                      <p className="mt-1 text-xs text-slate-400">{s.studentId} · {s.email}</p>
+                      <p className="font-bold text-slate-900">
+                        {s.fullName}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-400">
+                        {s.studentId} · {s.email}
+                      </p>
                     </Td>
-                    <Td><span className="font-semibold">{s.department}</span></Td>
+
+                    <Td>
+                      <span className="font-semibold">
+                        {s.department}
+                      </span>
+                    </Td>
+
                     <Td>{s.year}</Td>
+
                     <Td>
                       {s.team ? (
                         <>
-                          <p className="font-semibold text-slate-800">{s.team.name}</p>
+                          <p className="font-semibold text-slate-800">
+                            {s.team.name}
+                          </p>
+
                           <p className="mt-1 text-[11px] text-slate-400">
-                            {s.team.role === "TEAM_LEADER" ? "Team leader" : "Team member"}
+                            {s.team.role === "TEAM_LEADER"
+                              ? "Team leader"
+                              : "Team member"}
                           </p>
                         </>
                       ) : (
-                        <span className="text-slate-400">Not in a team</span>
+                        <span className="text-slate-400">
+                          Not in a team
+                        </span>
                       )}
                     </Td>
+
                     <Td>
                       <div className="flex flex-wrap gap-2">
                         <Badge
-                          tone={s.team ? (s.team.isEligible ? "success" : "warning") : "neutral"}
+                          tone={
+                            s.team
+                              ? s.team.isEligible
+                                ? "success"
+                                : "warning"
+                              : "neutral"
+                          }
                         >
                           {s.team
                             ? s.team.isEligible
@@ -1304,30 +1144,32 @@ export function StudentsPage() {
                               : "Team forming"
                             : "Unassigned"}
                         </Badge>
-                        <Badge tone={s.isActive ? "success" : "danger"}>
-                          {s.isActive ? "Active" : "Inactive"}
+
+                        <Badge
+                          tone={
+                            s.isActive
+                              ? "success"
+                              : "danger"
+                          }
+                        >
+                          {s.isActive
+                            ? "Active"
+                            : "Inactive"}
                         </Badge>
                       </div>
                     </Td>
+
                     <Td>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingStudent(s)}
-                        >
-                          <Pencil size={14} />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="Delete student"
-                          onClick={() => setDeletingStudent(s)}
-                        >
-                          <Trash2 size={15} className="text-rose-500" />
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setEditingStudent(s)
+                        }
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </Button>
                     </Td>
                   </tr>
                 ))}
@@ -1348,71 +1190,12 @@ export function StudentsPage() {
         )}
       </Card>
 
-      {creatingStudent && (
-        <StudentCreateModal
-          onClose={() => setCreatingStudent(false)}
-          onCreated={() => {
-            setCreatingStudent(false);
-            setPage(1);
-            setQ(q);
-            load(1, q);
-          }}
-        />
-      )}
-
       {editingStudent && (
         <StudentEditModal
           student={editingStudent}
           onClose={() => setEditingStudent(null)}
           onSaved={() => load(page, q)}
         />
-      )}
-
-      {deletingStudent && (
-        <Modal
-          title="Delete student"
-          description="Delete this student account from the hackathon system."
-          onClose={() => setDeletingStudent(null)}
-        >
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
-              <p className="font-bold text-rose-900">{deletingStudent.fullName}</p>
-              <p className="mt-1 text-sm text-rose-700">
-                {deletingStudent.studentId} · {deletingStudent.email}
-              </p>
-
-              {deletingStudent.team && (
-                <div className="mt-3 rounded-xl bg-white/70 p-3">
-                  <p className="text-xs font-bold text-rose-700">
-                    This student is currently a member of {deletingStudent.team.name}.
-                  </p>
-                  <p className="mt-1 text-xs text-rose-600">
-                    Remove the student from the team before deleting the account.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDeletingStudent(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={Boolean(deletingStudent.team)}
-                className="bg-rose-600 hover:bg-rose-700"
-                onClick={deleteStudent}
-              >
-                <Trash2 size={15} />
-                Delete student
-              </Button>
-            </div>
-          </div>
-        </Modal>
       )}
     </div>
   );
@@ -1753,15 +1536,402 @@ function MentorEditModal({ mentor, onClose, onUpdated }: { mentor: any; onClose:
 }
 
 export function AllocationPage() {
-  const [mentors, setMentors] = useState<any[]>([]); const [teams, setTeams] = useState<any[]>([]); const [selected, setSelected] = useState<string[]>([]); const [mentorId, setMentorId] = useState(""); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [tick, setTick] = useState(0); const toast = useToast();
-  const load = async () => { setLoading(true); setError(""); try { const [m, t] = await Promise.all([api<any>("/mentors/allocation"), api<any>("/teams?page=1&pageSize=1000&eligible=true&mentorAssigned=false")]); setMentors(m.items ?? []); setTeams(t.items ?? []); setSelected([]); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load allocation data"); } finally { setLoading(false); } };
-  useEffect(() => { load(); }, []);
-  const mentor = mentors.find(m => m.id === mentorId); const remaining = mentor?.availableCapacity ?? 0;
-  async function assign() { if (!mentor || !selected.length) return; if (selected.length > remaining) { toast.toast(`Only ${remaining} slot${remaining === 1 ? "" : "s"} available for this mentor`, "error"); return; } try { await api("/mentor-allocations", { method: "POST", body: { mentorId, teamIds: selected } }); toast.toast(`${selected.length} team${selected.length > 1 ? "s" : ""} assigned to ${mentor.fullName}`); setTick(v => v + 1); await load(); } catch (e) { toast.toast(e instanceof Error ? e.message : "Allocation failed", "error"); } }
-  async function unassign(teamId: string) { try { await api(`/mentor-allocations/team/${teamId}`, { method: "DELETE" }); toast.toast("Mentor allocation removed"); setTick(v => v + 1); await load(); } catch (e) { toast.toast(e instanceof Error ? e.message : "Could not unassign", "error"); } }
-  return <div><SectionHeader eyebrow="Guidance" title="Mentor allocation" description="Select eligible teams and allocate them to one guidance mentor. The backend enforces the six-team maximum." action={<Button variant="outline" onClick={load}><RefreshCw size={15}/>Refresh</Button>}/>{error ? <ErrorState message={error} onRetry={load}/> : loading ? <PageLoader/> : <><div className="grid gap-6 xl:grid-cols-[.72fr_1.28fr]"><Card className="p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">Mentors</p><h2 className="mt-1 text-lg font-extrabold">Choose a mentor</h2></div><Badge tone="info">{mentors.length} profiles</Badge></div><div className="mt-5 space-y-2.5">{mentors.map(m => <button key={m.id} onClick={() => setMentorId(m.id)} disabled={!m.isActive || m.atCapacity} className={`w-full rounded-2xl border p-4 text-left transition ${mentorId === m.id ? "border-indigo-300 bg-indigo-50/60 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-50`}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xs font-black">{m.fullName?.slice(0,1)}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{m.fullName}</p><p className="truncate text-[11px] text-slate-400">{m.specialization || "General mentor"}</p></div><span className="text-xs font-extrabold">{m.assignedTeamCount}/{m.maxTeams}</span></div><div className="mt-3 h-1.5 rounded-full bg-slate-200"><div className={`h-1.5 rounded-full ${m.atCapacity ? "bg-amber-500" : "bg-indigo-500"}`} style={{width: `${m.maxTeams ? Math.min(100, m.assignedTeamCount / m.maxTeams * 100) : 0}%`}}/></div><div className="mt-2 flex justify-between text-[10px] font-semibold"><span className={m.belowRecommended ? "text-amber-600" : "text-emerald-600"}>{m.belowRecommended ? "Below recommended" : "Within target"}</span><span className="text-slate-400">{m.availableCapacity} open slots</span></div></button>)}</div></Card><Card className="overflow-hidden"><div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">Unassigned teams</p><h2 className="mt-1 text-lg font-extrabold">Eligible teams</h2><p className="mt-1 text-xs text-slate-500">{selected.length} selected{mentor ? ` · ${mentor.fullName} has ${remaining} open slot${remaining === 1 ? "" : "s"}` : ""}</p></div><Button disabled={!mentor || !selected.length || selected.length > remaining} onClick={assign}><Handshake size={15}/>Assign selected</Button></div>{teams.length ? <Table><thead><tr><Th><input aria-label="Select all teams" type="checkbox" checked={selected.length === teams.length} onChange={e => setSelected(e.target.checked ? teams.map(t => t.id) : [])}/></Th><Th>Team</Th><Th>Members</Th><Th>Departments</Th><Th>Status</Th></tr></thead><tbody>{teams.map(t => <tr key={t.id}><Td><input aria-label={`Select ${t.name}`} type="checkbox" checked={selected.includes(t.id)} onChange={e => setSelected(v => e.target.checked ? [...v, t.id] : v.filter(id => id !== t.id))}/></Td><Td><p className="font-bold">{t.name}</p><p className="mt-1 font-mono text-[11px] text-slate-400">{t.teamCode}</p></Td><Td>{t.memberCount}/6</Td><Td>{(t.departments ?? []).join(" · ")}</Td><Td><Badge tone="success">Eligible</Badge></Td></tr>)}</tbody></Table> : <EmptyState title="No unassigned eligible teams" description="All eligible teams currently have a mentor or are not ready for allocation."/>}</Card></div><Card className="mt-6 overflow-hidden"><div className="border-b border-slate-100 p-5"><p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">Live relationships</p><h2 className="mt-1 text-lg font-extrabold">Current allocations</h2></div><CurrentAssignments key={tick} onUnassign={unassign}/></Card></>}</div>;
+  const [mentors, setMentors] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [mentorId, setMentorId] = useState("");
+  const [teamSearch, setTeamSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [tick, setTick] = useState(0);
+  const toast = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [m, t] = await Promise.all([
+        api<any>("/mentors/allocation"),
+        api<any>("/teams?page=1&pageSize=1000&eligible=true&mentorAssigned=false"),
+      ]);
+      setMentors(m.items ?? []);
+      setTeams(t.items ?? []);
+      setSelected([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load allocation data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const mentor = mentors.find(m => m.id === mentorId);
+  const remaining = mentor?.availableCapacity ?? 0;
+  const normalizedSearch = teamSearch.trim().toLowerCase();
+
+  const filteredTeams = normalizedSearch
+    ? teams.filter(t => {
+        const searchable = [
+          t.name,
+          t.teamCode,
+          ...(t.departments ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return searchable.includes(normalizedSearch);
+      })
+    : teams;
+
+  const visibleTeamIds = filteredTeams.map(t => t.id);
+  const allVisibleSelected =
+    filteredTeams.length > 0 &&
+    filteredTeams.every(t => selected.includes(t.id));
+
+  function toggleAllVisibleTeams(checked: boolean) {
+    setSelected(current => {
+      if (checked) {
+        return Array.from(new Set([...current, ...visibleTeamIds]));
+      }
+      return current.filter(id => !visibleTeamIds.includes(id));
+    });
+  }
+
+  async function assign() {
+    if (!mentor || !selected.length) return;
+    if (selected.length > remaining) {
+      toast.toast(
+        `Only ${remaining} slot${remaining === 1 ? "" : "s"} available for this mentor`,
+        "error"
+      );
+      return;
+    }
+
+    try {
+      await api("/mentor-allocations", {
+        method: "POST",
+        body: { mentorId, teamIds: selected },
+      });
+      toast.toast(
+        `${selected.length} team${selected.length > 1 ? "s" : ""} assigned to ${mentor.fullName}`
+      );
+      setTick(v => v + 1);
+      await load();
+    } catch (e) {
+      toast.toast(e instanceof Error ? e.message : "Allocation failed", "error");
+    }
+  }
+
+  async function unassign(teamId: string) {
+    try {
+      await api(`/mentor-allocations/team/${teamId}`, { method: "DELETE" });
+      toast.toast("Mentor allocation removed");
+      setTick(v => v + 1);
+      await load();
+    } catch (e) {
+      toast.toast(e instanceof Error ? e.message : "Could not unassign", "error");
+    }
+  }
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Guidance"
+        title="Mentor allocation"
+        description="Select eligible teams and allocate them to one guidance mentor. The backend enforces the six-team maximum."
+        action={
+          <Button variant="outline" onClick={load}>
+            <RefreshCw size={15} />
+            Refresh
+          </Button>
+        }
+      />
+
+      {error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : loading ? (
+        <PageLoader />
+      ) : (
+        <>
+          <div className="grid gap-6 xl:grid-cols-[.72fr_1.28fr]">
+            <Card className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">
+                    Mentors
+                  </p>
+                  <h2 className="mt-1 text-lg font-extrabold">Choose a mentor</h2>
+                </div>
+                <Badge tone="info">{mentors.length} profiles</Badge>
+              </div>
+
+              <div className="mt-5 space-y-2.5">
+                {mentors.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setMentorId(m.id)}
+                    disabled={!m.isActive || m.atCapacity}
+                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                      mentorId === m.id
+                        ? "border-indigo-300 bg-indigo-50/60 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xs font-black">
+                        {m.fullName?.slice(0, 1)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">{m.fullName}</p>
+                        <p className="truncate text-[11px] text-slate-400">
+                          {m.specialization || "General mentor"}
+                        </p>
+                      </div>
+                      <span className="text-xs font-extrabold">
+                        {m.assignedTeamCount}/{m.maxTeams}
+                      </span>
+                    </div>
+                    <div className="mt-3 h-1.5 rounded-full bg-slate-200">
+                      <div
+                        className={`h-1.5 rounded-full ${
+                          m.atCapacity ? "bg-amber-500" : "bg-indigo-500"
+                        }`}
+                        style={{
+                          width: `${
+                            m.maxTeams
+                              ? Math.min(100, (m.assignedTeamCount / m.maxTeams) * 100)
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                    <div className="mt-2 flex justify-between text-[10px] font-semibold">
+                      <span
+                        className={
+                          m.belowRecommended ? "text-amber-600" : "text-emerald-600"
+                        }
+                      >
+                        {m.belowRecommended ? "Below recommended" : "Within target"}
+                      </span>
+                      <span className="text-slate-400">
+                        {m.availableCapacity} open slots
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <div className="flex flex-col gap-3 border-b border-slate-100 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">
+                      Unassigned teams
+                    </p>
+                    <h2 className="mt-1 text-lg font-extrabold">Eligible teams</h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {selected.length} selected
+                      {mentor
+                        ? ` · ${mentor.fullName} has ${remaining} open slot${remaining === 1 ? "" : "s"}`
+                        : ""}
+                    </p>
+                  </div>
+
+                  <Button
+                    disabled={!mentor || !selected.length || selected.length > remaining}
+                    onClick={assign}
+                  >
+                    <Handshake size={15} />
+                    Assign selected
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <Search
+                    size={16}
+                    className="absolute left-3.5 top-3.5 text-slate-400"
+                  />
+                  <Input
+                    value={teamSearch}
+                    onChange={e => setTeamSearch(e.target.value)}
+                    placeholder="Search team name, team code or department..."
+                    className="pl-10"
+                  />
+                  {teamSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setTeamSearch("")}
+                      className="absolute right-3 top-2.5 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      aria-label="Clear team search"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-400">
+                  <span>
+                    {filteredTeams.length} of {teams.length} eligible teams shown
+                  </span>
+                  {teamSearch && (
+                    <span className="text-indigo-500">
+                      Searching “{teamSearch}”
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {filteredTeams.length ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>
+                        <input
+                          aria-label="Select all visible teams"
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={e => toggleAllVisibleTeams(e.target.checked)}
+                        />
+                      </Th>
+                      <Th>Team</Th>
+                      <Th>Members</Th>
+                      <Th>Departments</Th>
+                      <Th>Status</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTeams.map(t => (
+                      <tr key={t.id}>
+                        <Td>
+                          <input
+                            aria-label={`Select ${t.name}`}
+                            type="checkbox"
+                            checked={selected.includes(t.id)}
+                            onChange={e =>
+                              setSelected(v =>
+                                e.target.checked
+                                  ? Array.from(new Set([...v, t.id]))
+                                  : v.filter(id => id !== t.id)
+                              )
+                            }
+                          />
+                        </Td>
+                        <Td>
+                          <p className="font-bold">{t.name}</p>
+                          <p className="mt-1 font-mono text-[11px] text-slate-400">
+                            {t.teamCode}
+                          </p>
+                        </Td>
+                        <Td>{t.memberCount}/6</Td>
+                        <Td>{(t.departments ?? []).join(" · ")}</Td>
+                        <Td>
+                          <Badge tone="success">Eligible</Badge>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <EmptyState
+                  title={teamSearch ? "No matching teams" : "No unassigned eligible teams"}
+                  description={
+                    teamSearch
+                      ? "Try a different team name, team code or department."
+                      : "All eligible teams currently have a mentor or are not ready for allocation."
+                  }
+                />
+              )}
+            </Card>
+          </div>
+
+          <Card className="mt-6 overflow-hidden">
+            <div className="border-b border-slate-100 p-5">
+              <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">
+                Live relationships
+              </p>
+              <h2 className="mt-1 text-lg font-extrabold">Current allocations</h2>
+            </div>
+            <CurrentAssignments key={tick} onUnassign={unassign} />
+          </Card>
+        </>
+      )}
+    </div>
+  );
 }
-function CurrentAssignments({ onUnassign }: { onUnassign: (id: string) => void }) { const [data, setData] = useState<any[]>([]); const [loading, setLoading] = useState(true); useEffect(() => { api<any>("/mentor-allocations").then(r => setData(r.items ?? [])).catch(() => setData([])).finally(() => setLoading(false)); }, []); if (loading) return <div className="p-10"><Spinner label="Loading assignments…"/></div>; if (!data.length) return <EmptyState title="No mentor allocations yet" description="Assigned mentor-team relationships will appear here."/>; return <Table><thead><tr><Th>Mentor</Th><Th>Team</Th><Th>Members</Th><Th>Assigned</Th><Th>Action</Th></tr></thead><tbody>{data.map(a => <tr key={a.id}><Td><p className="font-bold">{a.mentor.fullName}</p><p className="mt-1 text-xs text-slate-400">{a.mentor.email}</p></Td><Td><p className="font-semibold">{a.team.name}</p><p className="mt-1 text-[11px] text-slate-400">{a.team.isEligible ? "Eligible" : "Needs action"}</p></Td><Td>{a.team.memberCount}/6</Td><Td>{new Date(a.assignedAt).toLocaleDateString()}</Td><Td><button title="Unassign mentor" onClick={() => onUnassign(a.team.id)} className="rounded-xl p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Unlink size={15}/></button></Td></tr>)}</tbody></Table>; }
+
+function CurrentAssignments({ onUnassign }: { onUnassign: (id: string) => void }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api<any>("/mentor-allocations")
+      .then(r => setData(r.items ?? []))
+      .catch(() => setData([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-10">
+        <Spinner label="Loading assignments…" />
+      </div>
+    );
+  }
+
+  if (!data.length) {
+    return (
+      <EmptyState
+        title="No mentor allocations yet"
+        description="Assigned mentor-team relationships will appear here."
+      />
+    );
+  }
+
+  return (
+    <Table>
+      <thead>
+        <tr>
+          <Th>Mentor</Th>
+          <Th>Team</Th>
+          <Th>Members</Th>
+          <Th>Assigned</Th>
+          <Th>Action</Th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map(a => (
+          <tr key={a.id}>
+            <Td>
+              <p className="font-bold">{a.mentor.fullName}</p>
+              <p className="mt-1 text-xs text-slate-400">{a.mentor.email}</p>
+            </Td>
+            <Td>
+              <p className="font-semibold">{a.team.name}</p>
+              <p className="mt-1 text-[11px] text-slate-400">
+                {a.team.isEligible ? "Eligible" : "Needs action"}
+              </p>
+            </Td>
+            <Td>{a.team.memberCount}/6</Td>
+            <Td>{new Date(a.assignedAt).toLocaleDateString()}</Td>
+            <Td>
+              <button
+                title="Unassign mentor"
+                onClick={() => onUnassign(a.team.id)}
+                className="rounded-xl p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+              >
+                <Unlink size={15} />
+              </button>
+            </Td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
 
 export function ExportsPage() { const toast = useToast(); const exports = [{ title: "All students", desc: "Registered students with academic and team membership information.", path: "/exports/students", icon: Users }, { title: "All teams", desc: "Team names, eligibility, departments and mentor assignment.", path: "/exports/teams", icon: UsersRound }, { title: "Team members", desc: "One row per student membership with team context.", path: "/exports/team-members", icon: FileSpreadsheet }, { title: "Mentor allocation", desc: "Current mentor-to-team guidance assignments.", path: "/exports/mentor-allocation", icon: Handshake }, { title: "Mentor summary", desc: "Mentor capacity, assigned count and assigned team names.", path: "/exports/mentor-summary", icon: ShieldCheck }]; async function dl(path: string, format: "xlsx" | "csv") { try { await downloadFile(`${path}?format=${format}`); toast.toast("Export downloaded successfully"); } catch (e) { toast.toast(e instanceof Error ? e.message : "Export failed", "error"); } } return <div><SectionHeader eyebrow="Data operations" title="Export center" description="Download current database records for reporting, coordination and offline work."/><div className="grid gap-4 lg:grid-cols-2">{exports.map(x => <Card key={x.path} className="p-6"><div className="flex gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600"><x.icon size={20}/></div><div className="min-w-0 flex-1"><h2 className="font-extrabold">{x.title}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{x.desc}</p><div className="mt-5 flex flex-wrap gap-2"><Button size="sm" onClick={() => dl(x.path, "xlsx")}><FileSpreadsheet size={14}/>Excel .xlsx</Button><Button size="sm" variant="outline" onClick={() => dl(x.path, "csv")}><FileText size={14}/>CSV</Button></div></div></div></Card>)}</div><Card className="mt-6 bg-slate-950 p-6 text-white"><div className="flex items-start gap-4"><Download className="mt-0.5 text-indigo-300" size={20}/><div><h3 className="font-bold">Live database exports</h3><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">Every download is generated by the backend from current PostgreSQL records. The frontend does not use demo rows or static export files.</p></div></div></Card></div>; }
 
