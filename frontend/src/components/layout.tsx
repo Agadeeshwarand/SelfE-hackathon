@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronRight, Download, Handshake, LayoutDashboard, LogOut, Menu, UserRound, Users, UsersRound, X, Plus, UserPlus, Megaphone } from "lucide-react";
+import { Bell, CalendarCheck, ChevronRight, ClipboardCheck, Download, Handshake, LayoutDashboard, LogOut, Menu, UserRound, Users, UsersRound, X, Plus, UserPlus, Megaphone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
@@ -11,12 +11,14 @@ const adminNav = [
   { to: "/admin/teams", label: "Teams", icon: UsersRound },
   { to: "/admin/mentors", label: "Mentors", icon: UserRound },
   { to: "/admin/mentor-allocation", label: "Mentor allocation", icon: Handshake },
+  { to: "/admin/attendance", label: "Attendance", icon: ClipboardCheck },
   { to: "/admin/messages", label: "Student messages", icon: Megaphone },
   { to: "/admin/exports", label: "Export center", icon: Download },
 ];
 const mentorNav = [
   { to: "/mentor", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/mentor/teams", label: "Assigned teams", icon: UsersRound },
+  { to: "/mentor/attendance", label: "Attendance", icon: CalendarCheck },
   { to: "/mentor/profile", label: "Profile", icon: UserRound },
 ];
 const participantNav = [

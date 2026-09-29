@@ -8,11 +8,14 @@ exports.studentsExport = studentsExport;
 exports.teamsExport = teamsExport;
 exports.teamMembersExport = teamMembersExport;
 exports.mentorAllocationExport = mentorAllocationExport;
+exports.mentorTeamMembersExport = mentorTeamMembersExport;
 exports.mentorSummaryExport = mentorSummaryExport;
+exports.attendanceExport = attendanceExport;
 const exceljs_1 = __importDefault(require("exceljs"));
 const prisma_1 = require("../../utils/prisma");
 const AppError_1 = require("../../utils/AppError");
 const service_1 = require("../teams/service");
+const db = prisma_1.prisma;
 function parseFormat(value) {
     const format = String(value ?? "xlsx").toLowerCase();
     if (format === "csv" || format === "xlsx")
@@ -242,6 +245,65 @@ async function mentorAllocationExport(query) {
     }));
     return fileResult("Hackathon_Mentor_Allocation", "Mentor Allocation", columns, rows, format);
 }
+async function mentorTeamMembersExport(query) {
+    const format = parseFormat(query.format);
+    const assignmentWhere = {};
+    const mentorId = typeof query.mentorId === "string" ? query.mentorId.trim() : "";
+    if (mentorId)
+        assignmentWhere.mentorId = mentorId;
+    const teamWhere = teamWhereFromQuery(query);
+    if (Object.keys(teamWhere).length)
+        assignmentWhere.team = teamWhere;
+    const assignments = await prisma_1.prisma.mentorGuidanceAssignment.findMany({
+        where: assignmentWhere,
+        orderBy: [
+            { mentor: { fullName: "asc" } },
+            { team: { name: "asc" } },
+        ],
+        include: {
+            mentor: { include: { user: true } },
+            team: {
+                include: {
+                    members: {
+                        orderBy: [{ isLeader: "desc" }, { joinedAt: "asc" }],
+                        include: {
+                            student: {
+                                include: {
+                                    department: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+    const columns = [
+        { header: "Mentor Name", key: "mentorName", width: 26 },
+        { header: "Team Name", key: "teamName", width: 26 },
+        { header: "Team Code", key: "teamCode", width: 18 },
+        { header: "Team Leader", key: "teamLeader", width: 26 },
+        { header: "Student Name", key: "studentName", width: 26 },
+        { header: "Register Number", key: "registerNumber", width: 22 },
+        { header: "Department", key: "department", width: 20 },
+    ];
+    const rows = [];
+    for (const assignment of assignments) {
+        const leader = assignment.team.members.find((member) => member.isLeader)?.student.fullName ?? "";
+        for (const member of assignment.team.members) {
+            rows.push({
+                mentorName: assignment.mentor.fullName,
+                teamName: assignment.team.name,
+                teamCode: assignment.team.teamCode,
+                teamLeader: leader,
+                studentName: member.student.fullName,
+                registerNumber: member.student.registerNumber,
+                department: member.student.department.name,
+            });
+        }
+    }
+    return fileResult("Hackathon_Mentor_Team_Members", "Mentor Team Members", columns, rows, format);
+}
 async function mentorSummaryExport(query) {
     const format = parseFormat(query.format);
     const mentors = await prisma_1.prisma.mentorProfile.findMany({
@@ -268,6 +330,87 @@ async function mentorSummaryExport(query) {
     }));
     return fileResult("Hackathon_Mentor_Summary", "Mentor Summary", columns, rows, format);
 }
+async function attendanceExport(query) {
+    const format = parseFormat(query.format);
+    const where = {};
+    const date = typeof query.date === "string" ? query.date.trim() : "";
+    if (date) {
+        const attendanceDate = new Date(`${date}T00:00:00.000Z`);
+        if (Number.isNaN(attendanceDate.getTime())) {
+            throw new AppError_1.AppError(400, "Invalid attendance date");
+        }
+        where.attendanceDate = attendanceDate;
+    }
+    const mentorId = typeof query.mentorId === "string" ? query.mentorId.trim() : "";
+    if (mentorId)
+        where.mentorId = mentorId;
+    if (query.status === "DRAFT" || query.status === "SUBMITTED") {
+        where.status = query.status;
+    }
+    const sessions = await db.attendanceSession.findMany({
+        where,
+        orderBy: [{ attendanceDate: "desc" }, { createdAt: "desc" }],
+        include: {
+            mentor: { select: { fullName: true } },
+            records: {
+                orderBy: [
+                    { team: { name: "asc" } },
+                    { student: { fullName: "asc" } },
+                ],
+                include: {
+                    student: { include: { department: true } },
+                    team: {
+                        select: {
+                            name: true,
+                            teamCode: true,
+                            members: {
+                                where: { isLeader: true },
+                                select: {
+                                    student: { select: { fullName: true } },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+    const columns = [
+        { header: "Date", key: "date", width: 14 },
+        { header: "Session", key: "session", width: 28 },
+        { header: "Mentor", key: "mentor", width: 26 },
+        { header: "Team Name", key: "teamName", width: 24 },
+        { header: "Team Code", key: "teamCode", width: 18 },
+        { header: "Team Leader", key: "teamLeader", width: 26 },
+        { header: "Student Name", key: "studentName", width: 26 },
+        { header: "Register Number", key: "registerNumber", width: 22 },
+        { header: "Department", key: "department", width: 20 },
+        { header: "Status", key: "status", width: 14 },
+        { header: "Marked At", key: "markedAt", width: 24 },
+        { header: "Submission Status", key: "submissionStatus", width: 20 },
+    ];
+    const rows = [];
+    for (const session of sessions) {
+        for (const record of session.records) {
+            const leader = record.team.members[0]?.student.fullName ?? "";
+            rows.push({
+                date: session.attendanceDate.toISOString().slice(0, 10),
+                session: session.sessionName,
+                mentor: session.mentor.fullName,
+                teamName: record.team.name,
+                teamCode: record.team.teamCode,
+                teamLeader: leader,
+                studentName: record.student.fullName,
+                registerNumber: record.student.registerNumber,
+                department: record.student.department.name,
+                status: record.status,
+                markedAt: record.markedAt.toISOString(),
+                submissionStatus: session.status,
+            });
+        }
+    }
+    return fileResult("Hackathon_Attendance", "Attendance", columns, rows, format);
+}
 async function fileResult(filename, sheetName, columns, rows, format) {
     if (format === "csv") {
         return {
@@ -290,4 +433,6 @@ exports.exporters = {
     "team-members": teamMembersExport,
     "mentor-allocation": mentorAllocationExport,
     "mentor-summary": mentorSummaryExport,
+    "mentor-team-members": mentorTeamMembersExport,
+    attendance: attendanceExport,
 };

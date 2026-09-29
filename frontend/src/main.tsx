@@ -42,6 +42,9 @@ import {
   MentorTeamDetail,
 } from "./pages/MentorPages";
 
+import MentorAttendancePage from "./pages/MentorAttendancePage";
+import { AdminAttendancePage } from "./pages/AttendancePages";
+
 function LoadingScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -239,6 +242,15 @@ function App() {
             />
 
             <Route
+              path="/admin/attendance"
+              element={
+                <RoleGate role="ADMIN">
+                  <AdminAttendancePage />
+                </RoleGate>
+              }
+            />
+
+            <Route
               path="/admin/messages"
               element={
                 <RoleGate role="ADMIN">
@@ -282,6 +294,15 @@ function App() {
               element={
                 <RoleGate role="MENTOR">
                   <MentorTeamDetail />
+                </RoleGate>
+              }
+            />
+
+            <Route
+              path="/mentor/attendance"
+              element={
+                <RoleGate role="MENTOR">
+                  <MentorAttendancePage />
                 </RoleGate>
               }
             />

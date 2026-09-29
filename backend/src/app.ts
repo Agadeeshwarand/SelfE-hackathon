@@ -11,6 +11,7 @@ import adminRoutes from "./modules/admin/routes";
 import * as adminController from "./modules/admin/controller";
 import exportRoutes from "./modules/exports/routes";
 import notificationRoutes from "./modules/notifications/routes";
+import attendanceRoutes from "./modules/attendance/routes";
 import * as allocationController from "./modules/allocations/controller";
 import { asyncHandler } from "./utils/asyncHandler";
 import { requireAuth, requireRole } from "./middleware/auth";
@@ -37,6 +38,7 @@ app.use("/api/students", studentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/exports", exportRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/attendance", attendanceRoutes);
 app.get("/api/mentor/dashboard", requireAuth, requireRole("MENTOR"), asyncHandler(allocationController.mentorDashboard));
 
 app.use(notFoundHandler);

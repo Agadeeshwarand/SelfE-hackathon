@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Download, FileSpreadsheet, FileText, Filter, Handshake, MoreHorizontal, Plus, RefreshCw, Search, ShieldCheck, UserRound, Users, UsersRound, Unlink, UserCheck, UserX, CheckCircle2, AlertTriangle, X, Pencil, Trash2, KeyRound, Megaphone } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, Filter, Handshake, MoreHorizontal, Plus, RefreshCw, Search, ShieldCheck, UserRound, Users, UsersRound, Unlink, UserCheck, UserX, CheckCircle2, AlertTriangle, X, Pencil, Trash2, KeyRound, Megaphone, CalendarCheck } from "lucide-react";
 import { api, downloadFile } from "../lib/api";
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, PageLoader, SectionHeader, Select, Spinner, StatCard, useToast } from "../components/ui";
 
@@ -982,6 +982,230 @@ function TeamManageModal({
   );
 }
 
+
+function StudentCreateModal({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    fullName: "",
+    registerNumber: "",
+    email: "",
+    phone: "",
+    gender: "PREFER_NOT_TO_SAY",
+    department: "",
+    year: "1",
+    college: "Sri Eshwar College of Engineering",
+    password: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const update = (field: string, value: string) =>
+    setForm((current) => ({ ...current, [field]: value }));
+
+  const submit = async () => {
+    setError("");
+
+    if (form.fullName.trim().length < 2) return setError("Full name is required.");
+    if (form.registerNumber.trim().length < 2) return setError("Register number is required.");
+    if (!form.email.trim()) return setError("Email is required.");
+    if (form.phone.trim().length < 7) return setError("Valid phone number is required.");
+    if (!form.department.trim()) return setError("Department is required.");
+    if (!form.college.trim()) return setError("College name is required.");
+    if (form.password.length < 8) return setError("Password must contain at least 8 characters.");
+
+    const year = Number(form.year);
+    if (!Number.isInteger(year) || year < 1 || year > 6) {
+      return setError("Year must be between 1 and 6.");
+    }
+
+    try {
+      setSaving(true);
+      await api("/students", {
+        method: "POST",
+        body: {
+          fullName: form.fullName.trim(),
+          registerNumber: form.registerNumber.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          gender: form.gender,
+          department: form.department.trim(),
+          year,
+          college: form.college.trim(),
+          password: form.password,
+        },
+      });
+      toast.toast("Student account created successfully");
+      onSaved();
+      onClose();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unable to create student.";
+      setError(message);
+      toast.toast(message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Create student account"
+      description="Admin can directly create a registered student account and provide the login credentials."
+      onClose={onClose}
+    >
+      <div className="space-y-5">
+        {error && <ErrorState message={error} />}
+
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+          <div className="flex gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+              <UserRound size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-slate-900">Admin-created registration</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                The student can use this email and password to sign in immediately.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name">
+            <Input value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Student full name" />
+          </Field>
+          <Field label="Register number">
+            <Input value={form.registerNumber} onChange={(e) => update("registerNumber", e.target.value)} placeholder="26BE..." />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Email">
+            <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="student@sece.ac.in" />
+          </Field>
+          <Field label="Phone">
+            <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="9876543210" />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Gender">
+            <Select value={form.gender} onChange={(e) => update("gender", e.target.value)}>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+            </Select>
+          </Field>
+
+          <Field label="Year">
+            <Select value={form.year} onChange={(e) => update("year", e.target.value)}>
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+              <option value="5">5th Year</option>
+              <option value="6">6th Year</option>
+            </Select>
+          </Field>
+
+          <Field label="Department">
+            <Input value={form.department} onChange={(e) => update("department", e.target.value)} placeholder="CSE" />
+          </Field>
+        </div>
+
+        <Field label="College">
+          <Input value={form.college} onChange={(e) => update("college", e.target.value)} />
+        </Field>
+
+        <Field label="Initial password">
+          <div className="relative">
+            <KeyRound size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+            <Input className="pl-10" type="text" value={form.password} onChange={(e) => update("password", e.target.value)} placeholder="Minimum 8 characters" />
+          </div>
+          <p className="mt-1.5 text-xs text-slate-400">Share this password securely with the student.</p>
+        </Field>
+
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving ? <Spinner label="Creating..." /> : <><Plus size={15} /> Create student</>}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function StudentDeleteModal({
+  student,
+  onClose,
+  onDeleted,
+}: {
+  student: any;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const toast = useToast();
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  const remove = async () => {
+    setError("");
+    try {
+      setDeleting(true);
+      await api(`/students/${student.id}`, { method: "DELETE" });
+      toast.toast("Student account deleted successfully");
+      onDeleted();
+      onClose();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unable to delete student.";
+      setError(message);
+      toast.toast(message, "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Delete student account?"
+      description="This action permanently removes the student's account and profile."
+      onClose={onClose}
+    >
+      <div className="space-y-5">
+        {error && <ErrorState message={error} />}
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-5">
+          <div className="flex gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+              <Trash2 size={19} />
+            </div>
+            <div>
+              <p className="font-extrabold text-slate-900">{student.fullName}</p>
+              <p className="mt-1 text-xs text-slate-500">{student.studentId} · {student.email}</p>
+              <p className="mt-3 text-xs leading-5 text-rose-700">
+                This cannot be undone. A student who is currently part of a team must first be removed from that team.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
+          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancel</Button>
+          <Button onClick={remove} disabled={deleting} className="bg-rose-600 hover:bg-rose-700">
+            {deleting ? <Spinner label="Deleting..." /> : <><Trash2 size={15} /> Delete student</>}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function StudentsPage() {
   const [data, setData] = useState<any>(null);
   const [q, setQ] = useState("");
@@ -989,6 +1213,8 @@ export function StudentsPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [creatingStudent, setCreatingStudent] = useState(false);
+  const [deletingStudent, setDeletingStudent] = useState<any>(null);
 
   const load = async (
     targetPage = page,
@@ -1023,6 +1249,12 @@ export function StudentsPage() {
         eyebrow="Directory"
         title="Student directory"
         description="Search registrations, academic details and current team membership."
+        action={
+          <Button onClick={() => setCreatingStudent(true)}>
+            <Plus size={15} />
+            Create student
+          </Button>
+        }
       />
 
       <Card className="overflow-hidden">
@@ -1160,16 +1392,25 @@ export function StudentsPage() {
                     </Td>
 
                     <Td>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setEditingStudent(s)
-                        }
-                      >
-                        <Pencil size={14} />
-                        Edit
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingStudent(s)}
+                        >
+                          <Pencil size={14} />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDeletingStudent(s)}
+                          className="border-rose-200 text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </Button>
+                      </div>
                     </Td>
                   </tr>
                 ))}
@@ -1190,11 +1431,26 @@ export function StudentsPage() {
         )}
       </Card>
 
+      {creatingStudent && (
+        <StudentCreateModal
+          onClose={() => setCreatingStudent(false)}
+          onSaved={() => load(page, q)}
+        />
+      )}
+
       {editingStudent && (
         <StudentEditModal
           student={editingStudent}
           onClose={() => setEditingStudent(null)}
           onSaved={() => load(page, q)}
+        />
+      )}
+
+      {deletingStudent && (
+        <StudentDeleteModal
+          student={deletingStudent}
+          onClose={() => setDeletingStudent(null)}
+          onDeleted={() => load(page, q)}
         />
       )}
     </div>
@@ -1933,7 +2189,91 @@ function CurrentAssignments({ onUnassign }: { onUnassign: (id: string) => void }
   );
 }
 
-export function ExportsPage() { const toast = useToast(); const exports = [{ title: "All students", desc: "Registered students with academic and team membership information.", path: "/exports/students", icon: Users }, { title: "All teams", desc: "Team names, eligibility, departments and mentor assignment.", path: "/exports/teams", icon: UsersRound }, { title: "Team members", desc: "One row per student membership with team context.", path: "/exports/team-members", icon: FileSpreadsheet }, { title: "Mentor allocation", desc: "Current mentor-to-team guidance assignments.", path: "/exports/mentor-allocation", icon: Handshake }, { title: "Mentor summary", desc: "Mentor capacity, assigned count and assigned team names.", path: "/exports/mentor-summary", icon: ShieldCheck }]; async function dl(path: string, format: "xlsx" | "csv") { try { await downloadFile(`${path}?format=${format}`); toast.toast("Export downloaded successfully"); } catch (e) { toast.toast(e instanceof Error ? e.message : "Export failed", "error"); } } return <div><SectionHeader eyebrow="Data operations" title="Export center" description="Download current database records for reporting, coordination and offline work."/><div className="grid gap-4 lg:grid-cols-2">{exports.map(x => <Card key={x.path} className="p-6"><div className="flex gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600"><x.icon size={20}/></div><div className="min-w-0 flex-1"><h2 className="font-extrabold">{x.title}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{x.desc}</p><div className="mt-5 flex flex-wrap gap-2"><Button size="sm" onClick={() => dl(x.path, "xlsx")}><FileSpreadsheet size={14}/>Excel .xlsx</Button><Button size="sm" variant="outline" onClick={() => dl(x.path, "csv")}><FileText size={14}/>CSV</Button></div></div></div></Card>)}</div><Card className="mt-6 bg-slate-950 p-6 text-white"><div className="flex items-start gap-4"><Download className="mt-0.5 text-indigo-300" size={20}/><div><h3 className="font-bold">Live database exports</h3><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">Every download is generated by the backend from current PostgreSQL records. The frontend does not use demo rows or static export files.</p></div></div></Card></div>; }
+export function ExportsPage() {
+  const toast = useToast();
+  const exports = [
+    { title: "All students", desc: "Registered students with academic and team membership information.", path: "/exports/students", icon: Users },
+    { title: "All teams", desc: "Team names, eligibility, departments and mentor assignment.", path: "/exports/teams", icon: UsersRound },
+    { title: "Team members", desc: "One row per student membership with team context.", path: "/exports/team-members", icon: FileSpreadsheet },
+    { title: "Mentor allocation", desc: "Current mentor-to-team guidance assignments.", path: "/exports/mentor-allocation", icon: Handshake },
+    { title: "Mentor summary", desc: "Mentor capacity, assigned count and assigned team names.", path: "/exports/mentor-summary", icon: ShieldCheck },
+    { title: "Mentor team member details", desc: "Mentor, team code, team leader and every assigned student with register number and department.", path: "/exports/mentor-team-members", icon: UsersRound },
+    { title: "Attendance", desc: "Mentor-submitted attendance with team, student, register number, department and submission status.", path: "/exports/attendance", icon: CalendarCheck },
+  ];
+
+  async function dl(path: string, format: "xlsx" | "csv") {
+    try {
+      await downloadFile(`${path}?format=${format}`);
+      toast.toast("Export downloaded successfully");
+    } catch (e) {
+      toast.toast(e instanceof Error ? e.message : "Export failed", "error");
+    }
+  }
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Data operations"
+        title="Export center"
+        description="Download current database records for reporting, coordination and offline work."
+      />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {exports.map((x) => (
+          <Card key={x.path} className="p-6">
+            <div className="flex gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <x.icon size={20} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h2 className="font-extrabold">{x.title}</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">{x.desc}</p>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => dl(x.path, "xlsx")}>
+                    <FileSpreadsheet size={14} />
+                    Excel .xlsx
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => dl(x.path, "csv")}>
+                    <FileText size={14} />
+                    CSV
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="mt-6 border-indigo-100 bg-indigo-50/50 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
+            <UsersRound size={19} />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900">Mentor team member details</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+              The detailed sheet contains one row per student and includes Mentor Name, Team Name, Team Code, Team Leader, Student Name, Register Number and Department. Existing export options above are preserved.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="mt-6 bg-slate-950 p-6 text-white">
+        <div className="flex items-start gap-4">
+          <Download className="mt-0.5 text-indigo-300" size={20} />
+          <div>
+            <h3 className="font-bold">Live database exports</h3>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
+              Every download is generated by the backend from current PostgreSQL records. The frontend does not use demo rows or static export files.
+            </p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 export function MessagesPage() {
   const [items, setItems] = useState<any[]>([]);

@@ -5,6 +5,8 @@ exports.teams = teams;
 exports.teamMembers = teamMembers;
 exports.mentorAllocation = mentorAllocation;
 exports.mentorSummary = mentorSummary;
+exports.attendance = attendance;
+exports.mentorTeamMembers = mentorTeamMembers;
 exports.unknownExport = unknownExport;
 const service_1 = require("./service");
 const AppError_1 = require("../../utils/AppError");
@@ -29,6 +31,13 @@ async function mentorAllocation(req, res) {
 }
 async function mentorSummary(req, res) {
     await sendExport("mentor-summary", req, res);
+}
+async function attendance(req, res) {
+    await sendExport("attendance", req, res);
+}
+// NEW
+async function mentorTeamMembers(req, res) {
+    await sendExport("mentor-team-members", req, res);
 }
 function unknownExport() {
     throw new AppError_1.AppError(404, "Unknown export");
