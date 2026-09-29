@@ -6,8 +6,8 @@ export const createMentorSchema = z.object({
   phone: z.string().min(7).max(20).optional().or(z.literal("")),
   specialization: z.string().max(120).optional().or(z.literal("")),
   password: z.string().min(8).max(72),
-  minTeams: z.number().int().min(0).max(6).optional(),
-  maxTeams: z.number().int().min(1).max(6).optional(),
+  minTeams: z.number().int().min(0).max(1000).optional(),
+  maxTeams: z.number().int().min(1).max(1000).optional(),
   isActive: z.boolean().optional(),
 });
 export type CreateMentorInput = z.infer<typeof createMentorSchema>;
@@ -18,8 +18,8 @@ export const updateMentorSchema = z.object({
   phone: z.string().min(7).max(20).optional().or(z.literal("")),
   specialization: z.string().max(120).optional().or(z.literal("")),
   password: z.string().min(8).max(72).optional(),
-  minTeams: z.number().int().min(0).max(6).optional(),
-  maxTeams: z.number().int().min(1).max(6).optional(),
+  minTeams: z.number().int().min(0).max(1000).optional(),
+  maxTeams: z.number().int().min(1).max(1000).optional(),
   isActive: z.boolean().optional(),
 });
 export type UpdateMentorInput = z.infer<typeof updateMentorSchema>;

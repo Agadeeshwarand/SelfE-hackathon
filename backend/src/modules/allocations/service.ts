@@ -3,8 +3,6 @@ import { AppError } from "../../utils/AppError";
 import { getTeamWithEligibility } from "../teams/service";
 import { serializeMentor } from "../mentors/service";
 
-const MAX_TEAMS_PER_MENTOR = 6;
-
 export async function assignTeams(mentorId: string, teamIds: string[], reassign = false) {
   const uniqueTeamIds = [...new Set(teamIds.filter(Boolean))];
   if (uniqueTeamIds.length === 0) {
@@ -50,7 +48,7 @@ export async function assignTeams(mentorId: string, teamIds: string[], reassign 
     uniqueTeamIds.includes(a.teamId)
   ).length;
   const newCount = uniqueTeamIds.length - alreadyAssignedToThis;
-  const maxTeams = Math.min(mentor.maxTeams, MAX_TEAMS_PER_MENTOR);
+  const maxTeams = mentor.maxTeams;
   if (mentor.guidanceAssignments.length + newCount > maxTeams) {
     throw new AppError(409, "Maximum team allocation reached.");
   }

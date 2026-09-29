@@ -9,7 +9,6 @@ const prisma_1 = require("../../utils/prisma");
 const AppError_1 = require("../../utils/AppError");
 const service_1 = require("../teams/service");
 const service_2 = require("../mentors/service");
-const MAX_TEAMS_PER_MENTOR = 6;
 async function assignTeams(mentorId, teamIds, reassign = false) {
     const uniqueTeamIds = [...new Set(teamIds.filter(Boolean))];
     if (uniqueTeamIds.length === 0) {
@@ -47,7 +46,7 @@ async function assignTeams(mentorId, teamIds, reassign = false) {
     }
     const alreadyAssignedToThis = mentor.guidanceAssignments.filter((a) => uniqueTeamIds.includes(a.teamId)).length;
     const newCount = uniqueTeamIds.length - alreadyAssignedToThis;
-    const maxTeams = Math.min(mentor.maxTeams, MAX_TEAMS_PER_MENTOR);
+    const maxTeams = mentor.maxTeams;
     if (mentor.guidanceAssignments.length + newCount > maxTeams) {
         throw new AppError_1.AppError(409, "Maximum team allocation reached.");
     }
