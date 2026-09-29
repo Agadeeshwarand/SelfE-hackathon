@@ -1,11 +1,17 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.serializeStudent = serializeStudent;
 exports.listStudents = listStudents;
 exports.getStudent = getStudent;
+exports.createStudent = createStudent;
+exports.deleteStudent = deleteStudent;
 exports.updateStudent = updateStudent;
 exports.getMyStudentProfile = getMyStudentProfile;
 exports.updateMyStudentProfile = updateMyStudentProfile;
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = require("../../utils/prisma");
 const AppError_1 = require("../../utils/AppError");
 const pagination_1 = require("../../utils/pagination");
@@ -135,9 +141,181 @@ async function getStudent(id) {
     }
     return serializeStudent(student);
 }
+/*
+ * ADMIN — CREATE STUDENT
+ *
+ * This is intentionally separate from the public registration
+ * flow, so REGISTRATION_OPEN=false does not affect admin creation.
+ */
+async function createStudent(input) {
+    const fullName = typeof input.fullName === "string"
+        ? input.fullName.trim()
+        : "";
+    const registerNumber = typeof input.registerNumber === "string"
+        ? input.registerNumber.trim()
+        : "";
+    const email = typeof input.email === "string"
+        ? input.email.trim().toLowerCase()
+        : "";
+    const phone = typeof input.phone === "string"
+        ? input.phone.trim()
+        : "";
+    const gender = typeof input.gender === "string"
+        ? input.gender
+        : "";
+    const departmentName = typeof input.department === "string"
+        ? input.department.trim()
+        : "";
+    const year = input.year === undefined
+        ? NaN
+        : Number(input.year);
+    const college = typeof input.college === "string"
+        ? input.college.trim()
+        : "";
+    const password = typeof input.password === "string"
+        ? input.password
+        : "";
+    if (fullName.length < 2 ||
+        fullName.length > 120) {
+        throw new AppError_1.AppError(400, "Name must be between 2 and 120 characters");
+    }
+    if (registerNumber.length < 2 ||
+        registerNumber.length > 40) {
+        throw new AppError_1.AppError(400, "Register number must be between 2 and 40 characters");
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new AppError_1.AppError(400, "Invalid email address");
+    }
+    if (phone.length < 7 ||
+        phone.length > 20) {
+        throw new AppError_1.AppError(400, "Phone number must be between 7 and 20 characters");
+    }
+    if (![
+        "MALE",
+        "FEMALE",
+        "OTHER",
+        "PREFER_NOT_TO_SAY",
+    ].includes(gender)) {
+        throw new AppError_1.AppError(400, "Invalid gender");
+    }
+    if (!departmentName) {
+        throw new AppError_1.AppError(400, "Department is required");
+    }
+    if (!Number.isInteger(year) ||
+        year < 1 ||
+        year > 6) {
+        throw new AppError_1.AppError(400, "Year must be between 1 and 6");
+    }
+    if (college.length < 2 ||
+        college.length > 160) {
+        throw new AppError_1.AppError(400, "College name must be between 2 and 160 characters");
+    }
+    if (password.length < 8 ||
+        password.length > 72) {
+        throw new AppError_1.AppError(400, "Password must be between 8 and 72 characters");
+    }
+    const [existingEmail, existingRegNo] = await Promise.all([
+        prisma_1.prisma.user.findUnique({
+            where: {
+                email,
+            },
+        }),
+        prisma_1.prisma.studentProfile.findUnique({
+            where: {
+                registerNumber,
+            },
+        }),
+    ]);
+    if (existingEmail) {
+        throw new AppError_1.AppError(409, "An account with this email already exists");
+    }
+    if (existingRegNo) {
+        throw new AppError_1.AppError(409, "This register number is already registered");
+    }
+    try {
+        const department = await prisma_1.prisma.department.upsert({
+            where: {
+                name: departmentName,
+            },
+            update: {},
+            create: {
+                name: departmentName,
+            },
+        });
+        const passwordHash = await bcryptjs_1.default.hash(password, 12);
+        const user = await prisma_1.prisma.user.create({
+            data: {
+                email,
+                passwordHash,
+                role: "TEAM_MEMBER",
+                studentProfile: {
+                    create: {
+                        fullName,
+                        registerNumber,
+                        phone,
+                        gender: gender,
+                        year,
+                        college,
+                        departmentId: department.id,
+                    },
+                },
+            },
+            include: {
+                studentProfile: true,
+            },
+        });
+        if (!user.studentProfile) {
+            throw new AppError_1.AppError(500, "Student profile could not be created");
+        }
+        return getStudent(user.studentProfile.id);
+    }
+    catch (err) {
+        if ((0, prismaErrors_1.isPrismaUniqueViolation)(err)) {
+            throw new AppError_1.AppError(409, "Email or register number is already in use");
+        }
+        throw err;
+    }
+}
+/*
+ * ADMIN — DELETE STUDENT
+ *
+ * A student currently belonging to a team cannot be deleted.
+ * Admin must remove the student from the team first.
+ */
+async function deleteStudent(id) {
+    const student = await prisma_1.prisma.studentProfile.findUnique({
+        where: {
+            id,
+        },
+        include: {
+            user: true,
+            teamMembership: {
+                include: {
+                    team: true,
+                },
+            },
+        },
+    });
+    if (!student) {
+        throw new AppError_1.AppError(404, "Student not found");
+    }
+    if (student.teamMembership) {
+        throw new AppError_1.AppError(409, `Cannot delete ${student.fullName} because the student is currently a member of team "${student.teamMembership.team.name}". Remove the student from the team first.`);
+    }
+    await prisma_1.prisma.user.delete({
+        where: {
+            id: student.userId,
+        },
+    });
+    return {
+        success: true,
+    };
+}
 async function updateStudent(id, input) {
     const existing = await prisma_1.prisma.studentProfile.findUnique({
-        where: { id },
+        where: {
+            id,
+        },
         include: {
             teamMembership: true,
         },
@@ -172,17 +350,20 @@ async function updateStudent(id, input) {
     const isActive = input.isActive === undefined
         ? undefined
         : Boolean(input.isActive);
-    if (fullName.length < 2 || fullName.length > 120) {
+    if (fullName.length < 2 ||
+        fullName.length > 120) {
         throw new AppError_1.AppError(400, "Name must be between 2 and 120 characters");
     }
     if (registerNumber.length < 2 ||
         registerNumber.length > 40) {
         throw new AppError_1.AppError(400, "Register number must be between 2 and 40 characters");
     }
-    if (phone.length < 7 || phone.length > 20) {
+    if (phone.length < 7 ||
+        phone.length > 20) {
         throw new AppError_1.AppError(400, "Phone number must be between 7 and 20 characters");
     }
-    if (college.length < 2 || college.length > 160) {
+    if (college.length < 2 ||
+        college.length > 160) {
         throw new AppError_1.AppError(400, "College name must be between 2 and 160 characters");
     }
     if (!Number.isInteger(year) ||
@@ -259,7 +440,9 @@ async function updateStudent(id, input) {
 }
 async function getMyStudentProfile(userId) {
     const student = await prisma_1.prisma.studentProfile.findUnique({
-        where: { userId },
+        where: {
+            userId,
+        },
         include: studentInclude,
     });
     if (!student) {
@@ -274,8 +457,12 @@ async function updateMyStudentProfile(userId, input) {
         throw new AppError_1.AppError(400, "Name must be between 2 and 120 characters");
     }
     const student = await prisma_1.prisma.studentProfile.update({
-        where: { userId },
-        data: { fullName },
+        where: {
+            userId,
+        },
+        data: {
+            fullName,
+        },
         include: studentInclude,
     });
     return serializeStudent(student);

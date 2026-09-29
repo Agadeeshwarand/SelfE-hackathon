@@ -35,7 +35,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.listStudents = listStudents;
 exports.getStudent = getStudent;
+exports.createStudent = createStudent;
 exports.updateStudent = updateStudent;
+exports.deleteStudent = deleteStudent;
 exports.me = me;
 exports.updateMe = updateMe;
 const studentService = __importStar(require("./service"));
@@ -47,9 +49,19 @@ async function getStudent(req, res) {
     const student = await studentService.getStudent(req.params.id);
     res.status(200).json(student);
 }
+async function createStudent(req, res) {
+    const student = await studentService.createStudent(req.body);
+    res.status(201).json(student);
+}
 async function updateStudent(req, res) {
     const student = await studentService.updateStudent(req.params.id, req.body);
     res.status(200).json(student);
+}
+async function deleteStudent(req, res) {
+    await studentService.deleteStudent(req.params.id);
+    res.status(200).json({
+        message: "Student deleted successfully",
+    });
 }
 async function me(req, res) {
     const student = await studentService.getMyStudentProfile(req.auth.userId);

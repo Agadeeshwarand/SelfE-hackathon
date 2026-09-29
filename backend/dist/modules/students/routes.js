@@ -39,9 +39,17 @@ const asyncHandler_1 = require("../../utils/asyncHandler");
 const auth_1 = require("../../middleware/auth");
 const router = (0, express_1.Router)();
 router.use(auth_1.requireAuth);
+/*
+ * STUDENT SELF SERVICE
+ */
 router.get("/me", (0, auth_1.requireRole)("TEAM_LEADER", "TEAM_MEMBER"), (0, asyncHandler_1.asyncHandler)(controller.me));
 router.patch("/me", (0, auth_1.requireRole)("TEAM_LEADER", "TEAM_MEMBER"), (0, asyncHandler_1.asyncHandler)(controller.updateMe));
+/*
+ * ADMIN STUDENT MANAGEMENT
+ */
 router.get("/", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.listStudents));
+router.post("/", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.createStudent));
 router.get("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.getStudent));
 router.patch("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.updateStudent));
+router.delete("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.deleteStudent));
 exports.default = router;

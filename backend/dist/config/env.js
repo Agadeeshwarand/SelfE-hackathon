@@ -15,4 +15,5 @@ exports.env = {
     jwtSecret: required("JWT_SECRET"),
     jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
     corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+    registrationOpen: (process.env.REGISTRATION_OPEN ?? "true").toLowerCase() === "true",
 };

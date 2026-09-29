@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { homeForRole } from "../lib/api";
 import {
@@ -27,6 +27,10 @@ const DEPARTMENTS = [
 ];
 
 const DEFAULT_COLLEGE = "Sri Eshwar College Of Engineering";
+
+// Registration is currently closed.
+// Backend is also protected using the REGISTRATION_OPEN environment variable.
+const REGISTRATION_OPEN = false;
 
 export default function RegisterPage() {
   const { user, loading, register } = useAuth();
@@ -79,6 +83,69 @@ export default function RegisterPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Registration closed screen
+  if (!REGISTRATION_OPEN) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex items-center justify-between">
+            <Link
+              to="/"
+              className="flex items-center gap-3"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 font-extrabold text-white">
+                H
+              </span>
+
+              <span className="font-extrabold">
+                SelfE Hackathon
+              </span>
+            </Link>
+
+            <Link
+              to="/login"
+              className="text-sm font-semibold text-slate-500 hover:text-slate-900"
+            >
+              Already registered? Sign in
+            </Link>
+          </div>
+
+          <div className="flex min-h-[70vh] items-center justify-center">
+            <Card className="w-full max-w-lg p-8 text-center sm:p-10">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+                <LockKeyhole
+                  size={28}
+                  className="text-slate-700"
+                />
+              </div>
+
+              <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-950">
+                Registration Closed
+              </h1>
+
+              <p className="mt-4 text-sm leading-7 text-slate-500">
+                SELF-E Hackathon registration is now closed.
+              </p>
+
+              <p className="mt-2 text-sm leading-7 text-slate-500">
+                If you have already registered, you can continue to
+                login and access your dashboard.
+              </p>
+
+              <Link
+                to="/login"
+                className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+              >
+                Go to Login
+                <ArrowRight size={16} />
+              </Link>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

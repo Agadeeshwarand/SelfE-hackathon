@@ -2,16 +2,25 @@ import "dotenv/config";
 
 function required(name: string): string {
   const value = process.env[name];
+
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
+
   return value;
 }
 
 export const env = {
   port: Number(process.env.PORT ?? 4000),
+
   databaseUrl: required("DATABASE_URL"),
+
   jwtSecret: required("JWT_SECRET"),
+
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
+
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+
+  registrationOpen:
+    (process.env.REGISTRATION_OPEN ?? "true").toLowerCase() === "true",
 };

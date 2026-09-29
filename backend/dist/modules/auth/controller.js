@@ -38,7 +38,13 @@ exports.login = login;
 exports.me = me;
 const validation_1 = require("./validation");
 const authService = __importStar(require("./service"));
+const env_1 = require("../../config/env");
 async function register(req, res) {
+    if (!env_1.env.registrationOpen) {
+        return res.status(403).json({
+            error: "Registration has been closed.",
+        });
+    }
     const input = validation_1.registerSchema.parse(req.body);
     const result = await authService.registerStudent(input);
     res.status(201).json(result);

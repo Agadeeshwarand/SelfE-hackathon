@@ -982,6 +982,189 @@ function TeamManageModal({
   );
 }
 
+function StudentCreateModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [form, setForm] = useState({
+    fullName: "",
+    registerNumber: "",
+    email: "",
+    phone: "",
+    gender: "MALE",
+    department: "CSE",
+    year: "1",
+    college: "Sri Eshwar College Of Engineering",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (!form.fullName.trim() || !form.registerNumber.trim() || !form.email.trim() || !form.phone.trim()) {
+      setError("Please fill all required student details.");
+      return;
+    }
+
+    if (!form.password || form.password.length < 8) {
+      setError("Password must contain at least 8 characters.");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      await api("/students", {
+        method: "POST",
+        body: {
+          fullName: form.fullName.trim(),
+          registerNumber: form.registerNumber.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim(),
+          gender: form.gender,
+          department: form.department.trim(),
+          year: Number(form.year),
+          college: form.college.trim(),
+          password: form.password,
+        },
+      });
+
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create student.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Add student"
+      description="Create a student account manually from the admin workspace."
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-5">
+        {error && <ErrorState message={error} />}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name">
+            <Input
+              required
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              placeholder="Student full name"
+            />
+          </Field>
+
+          <Field label="Register number">
+            <Input
+              required
+              value={form.registerNumber}
+              onChange={(e) => setForm({ ...form, registerNumber: e.target.value })}
+              placeholder="Register number"
+            />
+          </Field>
+
+          <Field label="Email">
+            <Input
+              required
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="student@example.com"
+            />
+          </Field>
+
+          <Field label="Phone">
+            <Input
+              required
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="Phone number"
+            />
+          </Field>
+
+          <Field label="Gender">
+            <Select
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+            >
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+            </Select>
+          </Field>
+
+          <Field label="Department">
+            <Input
+              required
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+              placeholder="CSE"
+            />
+          </Field>
+
+          <Field label="Year">
+            <Select
+              value={form.year}
+              onChange={(e) => setForm({ ...form, year: e.target.value })}
+            >
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+              <option value="5">5th Year</option>
+              <option value="6">6th Year</option>
+            </Select>
+          </Field>
+
+          <Field label="College">
+            <Input
+              required
+              value={form.college}
+              onChange={(e) => setForm({ ...form, college: e.target.value })}
+            />
+          </Field>
+        </div>
+
+        <Field label="Password" hint="Minimum 8 characters.">
+          <Input
+            required
+            type="password"
+            minLength={8}
+            maxLength={72}
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            placeholder="Temporary student password"
+          />
+        </Field>
+
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-xs leading-5 text-slate-500">
+            The password is sent to the backend and should be securely hashed before being stored.
+          </p>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? <><Spinner />Creating...</> : <><Plus size={15} />Create student</>}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export function StudentsPage() {
   const [data, setData] = useState<any>(null);
   const [q, setQ] = useState("");
@@ -989,27 +1172,19 @@ export function StudentsPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [creatingStudent, setCreatingStudent] = useState(false);
+  const [deletingStudent, setDeletingStudent] = useState<any>(null);
+  const toast = useToast();
 
-  const load = async (
-    targetPage = page,
-    search = q
-  ) => {
+  const load = async (targetPage = page, search = q) => {
     setError("");
-
     try {
       const result = await api<any>(
-        `/students?page=${targetPage}&pageSize=12&search=${encodeURIComponent(
-          search
-        )}`
+        `/students?page=${targetPage}&pageSize=12&search=${encodeURIComponent(search)}`
       );
-
       setData(result);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Unable to load students"
-      );
+      setError(e instanceof Error ? e.message : "Unable to load students");
     }
   };
 
@@ -1017,22 +1192,37 @@ export function StudentsPage() {
     load(page, q);
   }, [page]);
 
+  async function deleteStudent() {
+    if (!deletingStudent) return;
+
+    try {
+      await api(`/students/${deletingStudent.id}`, { method: "DELETE" });
+      toast.toast("Student deleted successfully");
+      setDeletingStudent(null);
+      await load(page, q);
+    } catch (e) {
+      toast.toast(e instanceof Error ? e.message : "Unable to delete student", "error");
+    }
+  }
+
   return (
     <div>
       <SectionHeader
         eyebrow="Directory"
         title="Student directory"
         description="Search registrations, academic details and current team membership."
+        action={
+          <Button onClick={() => setCreatingStudent(true)}>
+            <Plus size={16} />
+            Add student
+          </Button>
+        }
       />
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row">
           <div className="relative flex-1">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-3.5 text-slate-400"
-            />
-
+            <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
             <Input
               className="pl-10"
               placeholder="Name, register number or email"
@@ -1063,10 +1253,7 @@ export function StudentsPage() {
 
         {error ? (
           <div className="p-5">
-            <ErrorState
-              message={error}
-              onRetry={() => load(page, q)}
-            />
+            <ErrorState message={error} onRetry={() => load(page, q)} />
           </div>
         ) : !data ? (
           <div className="p-12">
@@ -1085,58 +1272,31 @@ export function StudentsPage() {
                   <Th>Action</Th>
                 </tr>
               </thead>
-
               <tbody>
                 {data.items.map((s: any) => (
                   <tr key={s.id}>
                     <Td>
-                      <p className="font-bold text-slate-900">
-                        {s.fullName}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        {s.studentId} · {s.email}
-                      </p>
+                      <p className="font-bold text-slate-900">{s.fullName}</p>
+                      <p className="mt-1 text-xs text-slate-400">{s.studentId} · {s.email}</p>
                     </Td>
-
-                    <Td>
-                      <span className="font-semibold">
-                        {s.department}
-                      </span>
-                    </Td>
-
+                    <Td><span className="font-semibold">{s.department}</span></Td>
                     <Td>{s.year}</Td>
-
                     <Td>
                       {s.team ? (
                         <>
-                          <p className="font-semibold text-slate-800">
-                            {s.team.name}
-                          </p>
-
+                          <p className="font-semibold text-slate-800">{s.team.name}</p>
                           <p className="mt-1 text-[11px] text-slate-400">
-                            {s.team.role === "TEAM_LEADER"
-                              ? "Team leader"
-                              : "Team member"}
+                            {s.team.role === "TEAM_LEADER" ? "Team leader" : "Team member"}
                           </p>
                         </>
                       ) : (
-                        <span className="text-slate-400">
-                          Not in a team
-                        </span>
+                        <span className="text-slate-400">Not in a team</span>
                       )}
                     </Td>
-
                     <Td>
                       <div className="flex flex-wrap gap-2">
                         <Badge
-                          tone={
-                            s.team
-                              ? s.team.isEligible
-                                ? "success"
-                                : "warning"
-                              : "neutral"
-                          }
+                          tone={s.team ? (s.team.isEligible ? "success" : "warning") : "neutral"}
                         >
                           {s.team
                             ? s.team.isEligible
@@ -1144,32 +1304,30 @@ export function StudentsPage() {
                               : "Team forming"
                             : "Unassigned"}
                         </Badge>
-
-                        <Badge
-                          tone={
-                            s.isActive
-                              ? "success"
-                              : "danger"
-                          }
-                        >
-                          {s.isActive
-                            ? "Active"
-                            : "Inactive"}
+                        <Badge tone={s.isActive ? "success" : "danger"}>
+                          {s.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </div>
                     </Td>
-
                     <Td>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setEditingStudent(s)
-                        }
-                      >
-                        <Pencil size={14} />
-                        Edit
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingStudent(s)}
+                        >
+                          <Pencil size={14} />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="Delete student"
+                          onClick={() => setDeletingStudent(s)}
+                        >
+                          <Trash2 size={15} className="text-rose-500" />
+                        </Button>
+                      </div>
                     </Td>
                   </tr>
                 ))}
@@ -1190,12 +1348,71 @@ export function StudentsPage() {
         )}
       </Card>
 
+      {creatingStudent && (
+        <StudentCreateModal
+          onClose={() => setCreatingStudent(false)}
+          onCreated={() => {
+            setCreatingStudent(false);
+            setPage(1);
+            setQ(q);
+            load(1, q);
+          }}
+        />
+      )}
+
       {editingStudent && (
         <StudentEditModal
           student={editingStudent}
           onClose={() => setEditingStudent(null)}
           onSaved={() => load(page, q)}
         />
+      )}
+
+      {deletingStudent && (
+        <Modal
+          title="Delete student"
+          description="Delete this student account from the hackathon system."
+          onClose={() => setDeletingStudent(null)}
+        >
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
+              <p className="font-bold text-rose-900">{deletingStudent.fullName}</p>
+              <p className="mt-1 text-sm text-rose-700">
+                {deletingStudent.studentId} · {deletingStudent.email}
+              </p>
+
+              {deletingStudent.team && (
+                <div className="mt-3 rounded-xl bg-white/70 p-3">
+                  <p className="text-xs font-bold text-rose-700">
+                    This student is currently a member of {deletingStudent.team.name}.
+                  </p>
+                  <p className="mt-1 text-xs text-rose-600">
+                    Remove the student from the team before deleting the account.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeletingStudent(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={Boolean(deletingStudent.team)}
+                className="bg-rose-600 hover:bg-rose-700"
+                onClick={deleteStudent}
+              >
+                <Trash2 size={15} />
+                Delete student
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
