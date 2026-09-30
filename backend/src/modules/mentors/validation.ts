@@ -23,3 +23,10 @@ export const updateMentorSchema = z.object({
   isActive: z.boolean().optional(),
 });
 export type UpdateMentorInput = z.infer<typeof updateMentorSchema>;
+
+
+export const mentorGroupSchema = z.object({
+  mainMentorId: z.string().min(1),
+  coMentorIds: z.array(z.string().min(1)).max(10).default([]),
+});
+export type MentorGroupInput = z.infer<typeof mentorGroupSchema>;

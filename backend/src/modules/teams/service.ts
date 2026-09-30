@@ -320,22 +320,16 @@ export async function getTeamById(
   }
 
   if (actor.role === "MENTOR") {
-    const mentor =
-      await prisma.mentorProfile.findUnique({
-        where: {
-          userId: actor.userId,
-        },
-      });
+    const mentor = await prisma.mentorProfile.findUnique({
+      where: { userId: actor.userId },
+      include: { mentorGroupMembership: true, mainMentorGroup: true },
+    });
 
-    if (
-      !mentor ||
-      team.guidanceAssignment
-        ?.mentorId !== mentor.id
-    ) {
-      throw new AppError(
-        403,
-        "You do not have access to this team"
-      );
+    const groupId = mentor?.mainMentorGroup?.id ?? mentor?.mentorGroupMembership?.groupId ?? null;
+    const assignmentGroupId = team.guidanceAssignment?.mentorGroupId ?? null;
+
+    if (!mentor || (groupId && assignmentGroupId ? groupId !== assignmentGroupId : team.guidanceAssignment?.mentorId !== mentor.id)) {
+      throw new AppError(403, "You do not have access to this team");
     }
 
     return withEligibility(team);

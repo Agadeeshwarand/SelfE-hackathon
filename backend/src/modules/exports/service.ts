@@ -223,6 +223,7 @@ export async function mentorAllocationExport(query: Record<string, unknown>) {
     orderBy: { assignedAt: "desc" },
     include: {
       mentor: { include: { user: true } },
+      mentorGroup: { include: { mainMentor: { select: { fullName: true } }, members: { include: { mentor: { select: { id: true, fullName: true } } } } } },
       team: { include: { members: { include: { student: true } } } },
     },
   });
@@ -256,7 +257,12 @@ export async function mentorTeamMembersExport(query: Record<string, unknown>) {
   const assignmentWhere: Prisma.MentorGuidanceAssignmentWhereInput = {};
 
   const mentorId = typeof query.mentorId === "string" ? query.mentorId.trim() : "";
-  if (mentorId) assignmentWhere.mentorId = mentorId;
+  if (mentorId) {
+    const mentor = await prisma.mentorProfile.findUnique({ where: { id: mentorId }, include: { mainMentorGroup: true, mentorGroupMembership: true } });
+    const groupId = mentor?.mainMentorGroup?.id ?? mentor?.mentorGroupMembership?.groupId;
+    if (groupId) assignmentWhere.mentorGroupId = groupId;
+    else assignmentWhere.mentorId = mentorId;
+  }
 
   const teamWhere = teamWhereFromQuery(query);
   if (Object.keys(teamWhere).length) assignmentWhere.team = teamWhere;
@@ -269,6 +275,20 @@ export async function mentorTeamMembersExport(query: Record<string, unknown>) {
     ],
     include: {
       mentor: { include: { user: true } },
+      mentorGroup: {
+        include: {
+          mainMentor: {
+            select: { id: true, fullName: true },
+          },
+          members: {
+            include: {
+              mentor: {
+                select: { id: true, fullName: true },
+              },
+            },
+          },
+        },
+      },
       team: {
         include: {
           members: {
@@ -287,7 +307,8 @@ export async function mentorTeamMembersExport(query: Record<string, unknown>) {
   });
 
   const columns = [
-    { header: "Mentor Name", key: "mentorName", width: 26 },
+    { header: "Main Mentor", key: "mentorName", width: 26 },
+    { header: "Co-Mentors", key: "coMentors", width: 36 },
     { header: "Team Name", key: "teamName", width: 26 },
     { header: "Team Code", key: "teamCode", width: 18 },
     { header: "Team Leader", key: "teamLeader", width: 26 },
@@ -304,7 +325,8 @@ export async function mentorTeamMembersExport(query: Record<string, unknown>) {
 
     for (const member of assignment.team.members) {
       rows.push({
-        mentorName: assignment.mentor.fullName,
+        mentorName: assignment.mentorGroup?.mainMentor?.fullName ?? assignment.mentor.fullName,
+        coMentors: (assignment.mentorGroup?.members ?? []).filter((member: any) => member.mentor.id !== (assignment.mentorGroup?.mainMentorId ?? assignment.mentor.id)).map((member: any) => member.mentor.fullName).join(", "),
         teamName: assignment.team.name,
         teamCode: assignment.team.teamCode,
         teamLeader: leader,
@@ -369,7 +391,12 @@ export async function attendanceExport(query: Record<string, unknown>) {
   }
 
   const mentorId = typeof query.mentorId === "string" ? query.mentorId.trim() : "";
-  if (mentorId) where.mentorId = mentorId;
+  if (mentorId) {
+    const mentor = await prisma.mentorProfile.findUnique({ where: { id: mentorId }, include: { mainMentorGroup: true, mentorGroupMembership: true } });
+    const groupId = mentor?.mainMentorGroup?.id ?? mentor?.mentorGroupMembership?.groupId;
+    if (groupId) where.mentorGroupId = groupId;
+    else where.mentorId = mentorId;
+  }
 
   if (query.status === "DRAFT" || query.status === "SUBMITTED") {
     where.status = query.status;
@@ -380,6 +407,8 @@ export async function attendanceExport(query: Record<string, unknown>) {
     orderBy: [{ attendanceDate: "desc" }, { createdAt: "desc" }],
     include: {
       mentor: { select: { fullName: true } },
+      mentorGroup: { include: { mainMentor: { select: { fullName: true } }, members: { include: { mentor: { select: { id: true, fullName: true } } } } } },
+      submittedByMentor: { select: { fullName: true } },
       records: {
         orderBy: [
           { team: { name: "asc" } },
@@ -407,7 +436,8 @@ export async function attendanceExport(query: Record<string, unknown>) {
   const columns = [
     { header: "Date", key: "date", width: 14 },
     { header: "Session", key: "session", width: 28 },
-    { header: "Mentor", key: "mentor", width: 26 },
+    { header: "Main Mentor", key: "mentor", width: 26 },
+    { header: "Co-Mentors", key: "coMentors", width: 36 },
     { header: "Team Name", key: "teamName", width: 24 },
     { header: "Team Code", key: "teamCode", width: 18 },
     { header: "Team Leader", key: "teamLeader", width: 26 },
@@ -416,6 +446,7 @@ export async function attendanceExport(query: Record<string, unknown>) {
     { header: "Department", key: "department", width: 20 },
     { header: "Status", key: "status", width: 14 },
     { header: "Marked At", key: "markedAt", width: 24 },
+    { header: "Submitted By", key: "submittedBy", width: 24 },
     { header: "Submission Status", key: "submissionStatus", width: 20 },
   ];
 
@@ -428,7 +459,8 @@ export async function attendanceExport(query: Record<string, unknown>) {
       rows.push({
         date: session.attendanceDate.toISOString().slice(0, 10),
         session: session.sessionName,
-        mentor: session.mentor.fullName,
+        mentor: session.mentorGroup?.mainMentor?.fullName ?? session.mentor.fullName,
+        coMentors: (session.mentorGroup?.members ?? []).filter((member: any) => member.mentor.id !== (session.mentorGroup?.mainMentor?.id ?? session.mentor.id)).map((member: any) => member.mentor.fullName).join(", "),
         teamName: record.team.name,
         teamCode: record.team.teamCode,
         teamLeader: leader,
@@ -437,6 +469,7 @@ export async function attendanceExport(query: Record<string, unknown>) {
         department: record.student.department.name,
         status: record.status,
         markedAt: record.markedAt.toISOString(),
+        submittedBy: session.submittedByMentor?.fullName ?? "—",
         submissionStatus: session.status,
       });
     }

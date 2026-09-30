@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { createMentorSchema, updateMentorSchema } from "./validation";
+import { createMentorSchema, mentorGroupSchema, updateMentorSchema } from "./validation";
 import * as mentorService from "./service";
 import { z } from "zod";
 import { AppError } from "../../utils/AppError";
@@ -51,4 +51,16 @@ export async function deleteMentor(req: Request, res: Response) {
 export async function myMentorProfile(req: Request, res: Response) {
   const mentor = await mentorService.getMentorByUserId(req.auth!.userId);
   res.status(200).json(mentor);
+}
+
+
+export async function getGroup(req: Request, res: Response) {
+  const group = await mentorService.getMentorGroup(req.params.id);
+  res.status(200).json(group);
+}
+
+export async function updateGroup(req: Request, res: Response) {
+  const input = mentorGroupSchema.parse(req.body);
+  const group = await mentorService.updateMentorGroup(req.params.id, input);
+  res.status(200).json(group);
 }

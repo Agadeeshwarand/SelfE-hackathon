@@ -41,6 +41,8 @@ exports.updateMentor = updateMentor;
 exports.setMentorStatus = setMentorStatus;
 exports.deleteMentor = deleteMentor;
 exports.myMentorProfile = myMentorProfile;
+exports.getGroup = getGroup;
+exports.updateGroup = updateGroup;
 const validation_1 = require("./validation");
 const mentorService = __importStar(require("./service"));
 const zod_1 = require("zod");
@@ -85,4 +87,13 @@ async function deleteMentor(req, res) {
 async function myMentorProfile(req, res) {
     const mentor = await mentorService.getMentorByUserId(req.auth.userId);
     res.status(200).json(mentor);
+}
+async function getGroup(req, res) {
+    const group = await mentorService.getMentorGroup(req.params.id);
+    res.status(200).json(group);
+}
+async function updateGroup(req, res) {
+    const input = validation_1.mentorGroupSchema.parse(req.body);
+    const group = await mentorService.updateMentorGroup(req.params.id, input);
+    res.status(200).json(group);
 }

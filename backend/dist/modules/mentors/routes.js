@@ -46,5 +46,7 @@ router.post("/", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandl
 router.get("/:id", (0, auth_1.requireRole)("ADMIN", "MENTOR"), (0, asyncHandler_1.asyncHandler)(controller.getMentor));
 router.patch("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.updateMentor));
 router.patch("/:id/status", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.setMentorStatus));
+router.get("/:id/group", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.getGroup));
+router.put("/:id/group", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.updateGroup));
 router.delete("/:id", (0, auth_1.requireRole)("ADMIN"), (0, asyncHandler_1.asyncHandler)(controller.deleteMentor));
 exports.default = router;

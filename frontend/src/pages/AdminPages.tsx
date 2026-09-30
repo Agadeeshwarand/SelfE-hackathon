@@ -1709,21 +1709,34 @@ export function MentorsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<any | null>(null);
+  const [groupMentor, setGroupMentor] = useState<any | null>(null);
   const [error, setError] = useState("");
   const toast = useToast();
+
   const load = async () => {
     setError("");
-    try { setData(await api<any>("/mentors?page=1&pageSize=100")); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to load mentors"); }
+    try {
+      setData(await api<any>("/mentors?page=1&pageSize=100"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load mentors");
+    }
   };
+
   useEffect(() => { load(); }, []);
+
   async function toggle(m: any) {
     try {
-      await api(`/mentors/${m.id}/status`, { method: "PATCH", body: { isActive: !m.isActive } });
+      await api(`/mentors/${m.id}/status`, {
+        method: "PATCH",
+        body: { isActive: !m.isActive },
+      });
       toast.toast(`${m.fullName} is now ${!m.isActive ? "active" : "inactive"}`);
       load();
-    } catch (e) { toast.toast(e instanceof Error ? e.message : "Update failed", "error"); }
+    } catch (e) {
+      toast.toast(e instanceof Error ? e.message : "Update failed", "error");
+    }
   }
+
   async function removeMentor() {
     if (!deleting) return;
     try {
@@ -1731,37 +1744,199 @@ export function MentorsPage() {
       toast.toast(`${deleting.fullName} was removed`);
       setDeleting(null);
       load();
-    } catch (e) { toast.toast(e instanceof Error ? e.message : "Could not remove mentor", "error"); }
+    } catch (e) {
+      toast.toast(e instanceof Error ? e.message : "Could not remove mentor", "error");
+    }
   }
+
   const items = data?.items ?? [];
   const capacity = items.reduce((n: number, m: any) => n + Number(m.availableCapacity ?? 0), 0);
-  return <div>
-    <SectionHeader eyebrow="People" title="Mentor management" description="Create mentor accounts, update their profiles, control access and manage guidance capacity." action={<Button onClick={() => setOpen(true)}><Plus size={16}/>Add mentor</Button>}/>
-    {error ? <ErrorState message={error} onRetry={load}/> : !data ? <PageLoader/> : <>
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Mentors" value={data.total ?? items.length} sub="Total profiles" icon={UserRound}/>
-        <StatCard label="Active" value={items.filter((m: any) => m.isActive).length} sub="Accounts available for allocation" icon={UserCheck} tone="emerald"/>
-        <StatCard label="Open capacity" value={capacity} sub="Available team slots" icon={Handshake} tone="sky"/>
-      </div>
-      <Card className="overflow-hidden">
-        <Table><thead><tr><Th>Mentor</Th><Th>Specialization</Th><Th>Capacity</Th><Th>Status</Th><Th>Actions</Th></tr></thead>
-        <tbody>{items.map((m: any) => {
-          const pct = m.maxTeams ? Math.min(100, (m.assignedTeamCount / m.maxTeams) * 100) : 0;
-          return <tr key={m.id}>
-            <Td><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-xs font-black text-indigo-700">{m.fullName?.slice(0,1)}</div><div><p className="font-bold text-slate-900">{m.fullName}</p><p className="mt-1 text-xs text-slate-400">{m.email}</p></div></div></Td>
-            <Td>{m.specialization || <span className="text-slate-400">General mentor</span>}</Td>
-            <Td><div className="min-w-[160px]"><div className="flex justify-between text-[11px] font-bold"><span>{m.assignedTeamCount}/{m.maxTeams}</span><span className={m.atCapacity ? "text-amber-600" : "text-slate-400"}>{m.availableCapacity} open</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className={`h-2 rounded-full ${m.atCapacity ? "bg-amber-500" : "bg-indigo-500"}`} style={{width: `${pct}%`}}/></div></div></Td>
-            <Td><button onClick={() => toggle(m)}><Badge tone={m.isActive ? "success" : "neutral"}>{m.isActive ? <><CheckCircle2 size={11}/>Active</> : <><UserX size={11}/>Inactive</>}</Badge></button></Td>
-            <Td><div className="flex items-center gap-1"><Button size="sm" variant="ghost" onClick={() => setEditing(m)} title="Edit mentor"><Pencil size={15}/></Button><Button size="sm" variant="ghost" onClick={() => setDeleting(m)} title="Remove mentor"><Trash2 size={15} className="text-rose-500"/></Button></div></Td>
-          </tr>;
-        })}</tbody></Table>
-        {!items.length && <EmptyState title="No mentors yet" description="Use Add mentor to create the first guidance account."/>}
-      </Card>
-    </>}
-    {open && <MentorModal onClose={() => setOpen(false)} onCreated={load}/>} 
-    {editing && <MentorEditModal mentor={editing} onClose={() => setEditing(null)} onUpdated={() => { setEditing(null); load(); }}/>} 
-    {deleting && <Modal title="Remove mentor" description="This permanently removes the mentor account. Assigned mentors must be unassigned before they can be deleted." onClose={() => setDeleting(null)}><div className="space-y-5"><div className="rounded-2xl bg-rose-50 p-4"><p className="font-bold text-rose-900">{deleting.fullName}</p><p className="mt-1 text-sm text-rose-700">{deleting.email}</p>{Number(deleting.assignedTeamCount) > 0 && <p className="mt-2 text-xs font-semibold text-rose-700">This mentor currently has {deleting.assignedTeamCount} assigned team(s).</p>}</div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button disabled={Number(deleting.assignedTeamCount) > 0} className="bg-rose-600 hover:bg-rose-700" onClick={removeMentor}><Trash2 size={15}/>Remove mentor</Button></div></div></Modal>}
-  </div>;
+  const mainMentors = items.filter((m: any) => m.mentorGroup?.role === "MAIN").length;
+  const coMentors = items.filter((m: any) => m.mentorGroup?.role === "CO_MENTOR").length;
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="People"
+        title="Mentor management"
+        description="Create mentor accounts, update their profiles, control guidance capacity and organize main/co-mentor groups."
+        action={<Button onClick={() => setOpen(true)}><Plus size={16}/>Add mentor</Button>}
+      />
+
+      {error ? <ErrorState message={error} onRetry={load}/> : !data ? <PageLoader/> : <>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Mentors" value={data.total ?? items.length} sub="Total profiles" icon={UserRound}/>
+          <StatCard label="Main mentors" value={mainMentors} sub="Mentor groups" icon={Handshake} tone="sky"/>
+          <StatCard label="Co-mentors" value={coMentors} sub="Shared workspace members" icon={UsersRound} tone="indigo"/>
+          <StatCard label="Open capacity" value={capacity} sub="Available group team slots" icon={UserCheck} tone="emerald"/>
+        </div>
+
+        <Card className="overflow-hidden">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Mentor</Th>
+                <Th>Role / Group</Th>
+                <Th>Specialization</Th>
+                <Th>Capacity</Th>
+                <Th>Status</Th>
+                <Th>Actions</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((m: any) => {
+                const pct = m.maxTeams ? Math.min(100, (m.assignedTeamCount / m.maxTeams) * 100) : 0;
+                const role = m.mentorGroup?.role === "CO_MENTOR" ? "CO-MENTOR" : "MAIN MENTOR";
+                const groupMembers = (m.mentorGroup?.coMentors ?? []).map((co: any) => co.fullName).join(", ");
+                return (
+                  <tr key={m.id}>
+                    <Td>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-xs font-black text-indigo-700">{m.fullName?.slice(0,1)}</div>
+                        <div>
+                          <p className="font-bold text-slate-900">{m.fullName}</p>
+                          <p className="mt-1 text-xs text-slate-400">{m.email}</p>
+                        </div>
+                      </div>
+                    </Td>
+                    <Td>
+                      <div className="space-y-1.5">
+                        <Badge tone={role === "MAIN MENTOR" ? "info" : "neutral"}>{role}</Badge>
+                        {role === "MAIN MENTOR" ? (
+                          <p className="text-[11px] text-slate-400">
+                            {groupMembers ? `Co: ${groupMembers}` : "No co-mentor assigned"}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-400">Main: {m.mentorGroup?.mainMentor?.fullName ?? "—"}</p>
+                        )}
+                      </div>
+                    </Td>
+                    <Td>{m.specialization || <span className="text-slate-400">General mentor</span>}</Td>
+                    <Td>
+                      <div className="min-w-[160px]">
+                        <div className="flex justify-between text-[11px] font-bold">
+                          <span>{m.assignedTeamCount}/{m.maxTeams}</span>
+                          <span className={m.atCapacity ? "text-amber-600" : "text-slate-400"}>{m.availableCapacity} open</span>
+                        </div>
+                        <div className="mt-2 h-2 rounded-full bg-slate-100">
+                          <div className={`h-2 rounded-full ${m.atCapacity ? "bg-amber-500" : "bg-indigo-500"}`} style={{width: `${pct}%`}}/>
+                        </div>
+                      </div>
+                    </Td>
+                    <Td>
+                      <button onClick={() => toggle(m)}>
+                        <Badge tone={m.isActive ? "success" : "neutral"}>
+                          {m.isActive ? <><CheckCircle2 size={11}/>Active</> : <><UserX size={11}/>Inactive</>}
+                        </Badge>
+                      </button>
+                    </Td>
+                    <Td>
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="outline" onClick={() => setGroupMentor(m)} title="Manage mentor group">
+                          <UsersRound size={14}/>
+                          Group
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditing(m)} title="Edit mentor"><Pencil size={15}/></Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeleting(m)} title="Remove mentor"><Trash2 size={15} className="text-rose-500"/></Button>
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+          {!items.length && <EmptyState title="No mentors yet" description="Use Add mentor to create the first guidance account."/>}
+        </Card>
+      </>}
+
+      {open && <MentorModal onClose={() => setOpen(false)} onCreated={load}/>} 
+      {editing && <MentorEditModal mentor={editing} onClose={() => setEditing(null)} onUpdated={() => { setEditing(null); load(); }}/>} 
+      {groupMentor && <MentorGroupModal mentor={groupMentor} mentors={items} onClose={() => setGroupMentor(null)} onSaved={() => { setGroupMentor(null); load(); }}/>} 
+      {deleting && <Modal title="Remove mentor" description="This permanently removes the mentor account. Assigned mentors must be unassigned before they can be deleted." onClose={() => setDeleting(null)}><div className="space-y-5"><div className="rounded-2xl bg-rose-50 p-4"><p className="font-bold text-rose-900">{deleting.fullName}</p><p className="mt-1 text-sm text-rose-700">{deleting.email}</p>{Number(deleting.assignedTeamCount) > 0 && <p className="mt-2 text-xs font-semibold text-rose-700">This mentor currently has {deleting.assignedTeamCount} assigned team(s).</p>}</div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button><Button disabled={Number(deleting.assignedTeamCount) > 0 || Boolean(deleting.mentorGroup?.members?.length > 1)} className="bg-rose-600 hover:bg-rose-700" onClick={removeMentor}><Trash2 size={15}/>Remove mentor</Button></div></div></Modal>}
+    </div>
+  );
+}
+
+function MentorGroupModal({ mentor, mentors, onClose, onSaved }: { mentor: any; mentors: any[]; onClose: () => void; onSaved: () => void }) {
+  const [group, setGroup] = useState<any>(null);
+  const [mainMentorId, setMainMentorId] = useState(mentor.id);
+  const [coMentorIds, setCoMentorIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api<any>(`/mentors/${mentor.id}/group`)
+      .then((result) => {
+        setGroup(result);
+        setMainMentorId(result.mainMentor?.id ?? mentor.id);
+        setCoMentorIds((result.coMentors ?? []).map((m: any) => m.id));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Unable to load mentor group"))
+      .finally(() => setLoading(false));
+  }, [mentor.id]);
+
+  const activeMentors = mentors.filter((m: any) => m.isActive);
+  const availableCoMentors = activeMentors.filter((m: any) => m.id !== mainMentorId && (m.mentorGroup?.role !== "CO_MENTOR" || m.mentorGroup?.mainMentor?.id === group?.mainMentor?.id));
+
+  function toggleCo(id: string) {
+    setCoMentorIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  }
+
+  async function save() {
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/mentors/${mentor.id}/group`, {
+        method: "PUT",
+        body: { mainMentorId, coMentorIds: coMentorIds.filter((id) => id !== mainMentorId) },
+      });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save mentor group");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Manage mentor group" description="Choose the main mentor and the co-mentors who will share the same teams, attendance and mentor dashboard." onClose={onClose}>
+      {loading ? <Spinner label="Loading mentor group…"/> : <div className="space-y-5">
+        {error && <ErrorState message={error}/>} 
+
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+          <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-indigo-500">Current group</p>
+          <p className="mt-1 text-sm font-extrabold text-slate-900">{group?.assignedTeamCount ?? 0} assigned teams · {group?.availableCapacity ?? 0} open slots</p>
+          <p className="mt-1 text-xs text-slate-500">All members of this group will see the same assigned teams after login.</p>
+        </div>
+
+        <Field label="Main mentor">
+          <select value={mainMentorId} onChange={(e) => { setMainMentorId(e.target.value); setCoMentorIds((ids) => ids.filter((id) => id !== e.target.value)); }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10">
+            {activeMentors.map((m: any) => <option key={m.id} value={m.id}>{m.fullName} · {m.specialization || "General mentor"}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Co-mentors" hint="Hold Ctrl/Cmd to select multiple mentors. Each selected mentor keeps their own login credentials.">
+          <select multiple value={coMentorIds} onChange={(e) => setCoMentorIds(Array.from(e.target.selectedOptions).map((option) => option.value))} size={Math.min(7, Math.max(4, availableCoMentors.length))} className="w-full rounded-xl border border-slate-200 bg-white p-2 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10">
+            {availableCoMentors.map((m: any) => <option key={m.id} value={m.id}>{m.fullName} · {m.specialization || "General mentor"}</option>)}
+          </select>
+        </Field>
+
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">Shared workspace</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl bg-white p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Main mentor</p><p className="mt-1 text-sm font-bold">{activeMentors.find((m: any) => m.id === mainMentorId)?.fullName ?? "—"}</p></div>
+            <div className="rounded-xl bg-white p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Co-mentors</p><p className="mt-1 text-sm font-bold">{coMentorIds.length ? coMentorIds.map((id) => activeMentors.find((m: any) => m.id === id)?.fullName).filter(Boolean).join(", ") : "None"}</p></div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button disabled={busy} onClick={save}>{busy ? <><Spinner/>Saving…</> : <><UsersRound size={15}/>Save group</>}</Button>
+        </div>
+      </div>}
+    </Modal>
+  );
 }
 
 function MentorModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -1919,7 +2094,7 @@ export function AllocationPage() {
                   <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">
                     Mentors
                   </p>
-                  <h2 className="mt-1 text-lg font-extrabold">Choose a mentor</h2>
+                  <h2 className="mt-1 text-lg font-extrabold">Choose a mentor group</h2>
                 </div>
                 <Badge tone="info">{mentors.length} profiles</Badge>
               </div>
@@ -1943,8 +2118,13 @@ export function AllocationPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold">{m.fullName}</p>
                         <p className="truncate text-[11px] text-slate-400">
-                          {m.specialization || "General mentor"}
+                          Main mentor · {m.specialization || "General mentor"}
                         </p>
+                        {(m.mentorGroup?.coMentors ?? []).length > 0 && (
+                          <p className="mt-1 truncate text-[10px] font-semibold text-indigo-500">
+                            Co: {(m.mentorGroup.coMentors ?? []).map((co: any) => co.fullName).join(", ")}
+                          </p>
+                        )}
                       </div>
                       <span className="text-xs font-extrabold">
                         {m.assignedTeamCount}/{m.maxTeams}
@@ -2164,6 +2344,7 @@ function CurrentAssignments({ onUnassign }: { onUnassign: (id: string) => void }
             <Td>
               <p className="font-bold">{a.mentor.fullName}</p>
               <p className="mt-1 text-xs text-slate-400">{a.mentor.email}</p>
+              {a.mentorGroup?.coMentors?.length > 0 && <p className="mt-1 text-[10px] font-semibold text-indigo-500">Co: {a.mentorGroup.coMentors.map((co: any) => co.fullName).join(", ")}</p>}
             </Td>
             <Td>
               <p className="font-semibold">{a.team.name}</p>

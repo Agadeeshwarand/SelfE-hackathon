@@ -77,6 +77,11 @@ enum AttendanceStatus {
   ABSENT
 }
 
+enum MentorGroupRole {
+  MAIN
+  CO_MENTOR
+}
+
 model Department {
   id       String   @id @default(cuid())
   name     String   @unique
@@ -133,6 +138,9 @@ model MentorProfile {
   guidanceAssignments   MentorGuidanceAssignment[]
   evaluationAssignments EvaluationAssignment[]
   attendanceSessions    AttendanceSession[]
+  mainMentorGroup       MentorGroup? @relation("MentorGroupMain")
+  mentorGroupMembership MentorGroupMember?
+  submittedAttendanceSessions AttendanceSession[] @relation("AttendanceSubmittedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,6 +264,10 @@ model AttendanceSession {
   id             String                  @id @default(cuid())
   mentorId       String
   mentor         MentorProfile           @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorGroupId  String?
+  mentorGroup    MentorGroup?            @relation(fields: [mentorGroupId], references: [id], onDelete: Cascade)
+  submittedByMentorId String?
+  submittedByMentor MentorProfile?       @relation("AttendanceSubmittedBy", fields: [submittedByMentorId], references: [id], onDelete: SetNull)
   attendanceDate DateTime
   sessionName    String
   status         AttendanceSessionStatus @default(DRAFT)
@@ -265,8 +277,10 @@ model AttendanceSession {
   updatedAt      DateTime                @updatedAt
 
   @@unique([mentorId, attendanceDate, sessionName])
+  @@unique([mentorGroupId, attendanceDate, sessionName])
   @@index([attendanceDate])
   @@index([mentorId])
+  @@index([mentorGroupId])
 }
 
 model AttendanceRecord {
@@ -285,16 +299,43 @@ model AttendanceRecord {
   @@index([teamId])
 }
 
+model MentorGroup {
+  id           String   @id @default(cuid())
+  mainMentorId String   @unique
+  mainMentor   MentorProfile @relation("MentorGroupMain", fields: [mainMentorId], references: [id], onDelete: Cascade)
+  members      MentorGroupMember[]
+  assignments  MentorGuidanceAssignment[]
+  attendanceSessions AttendanceSession[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MentorGroupMember {
+  id       String @id @default(cuid())
+  groupId  String
+  mentorId String @unique
+  role     MentorGroupRole
+  group    MentorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  mentor   MentorProfile @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, mentorId])
+  @@index([groupId])
+}
+
 model MentorGuidanceAssignment {
   id         String   @id @default(cuid())
   mentorId   String
   mentor     MentorProfile @relation(fields: [mentorId], references: [id])
+  mentorGroupId String?
+  mentorGroup MentorGroup? @relation(fields: [mentorGroupId], references: [id], onDelete: SetNull)
   teamId     String   @unique
   team       Team     @relation(fields: [teamId], references: [id])
   assignedAt DateTime @default(now())
 
   @@unique([mentorId, teamId])
   @@index([mentorId])
+  @@index([mentorGroupId])
 }
 
 model MentorApproval {

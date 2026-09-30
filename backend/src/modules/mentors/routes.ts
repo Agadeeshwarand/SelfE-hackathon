@@ -14,6 +14,8 @@ router.post("/", requireRole("ADMIN"), asyncHandler(controller.createMentor));
 router.get("/:id", requireRole("ADMIN", "MENTOR"), asyncHandler(controller.getMentor));
 router.patch("/:id", requireRole("ADMIN"), asyncHandler(controller.updateMentor));
 router.patch("/:id/status", requireRole("ADMIN"), asyncHandler(controller.setMentorStatus));
+router.get("/:id/group", requireRole("ADMIN"), asyncHandler(controller.getGroup));
+router.put("/:id/group", requireRole("ADMIN"), asyncHandler(controller.updateGroup));
 router.delete("/:id", requireRole("ADMIN"), asyncHandler(controller.deleteMentor));
 
 export default router;

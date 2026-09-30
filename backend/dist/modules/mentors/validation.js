@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMentorSchema = exports.createMentorSchema = void 0;
+exports.mentorGroupSchema = exports.updateMentorSchema = exports.createMentorSchema = void 0;
 const zod_1 = require("zod");
 exports.createMentorSchema = zod_1.z.object({
     fullName: zod_1.z.string().min(2).max(120),
@@ -21,4 +21,8 @@ exports.updateMentorSchema = zod_1.z.object({
     minTeams: zod_1.z.number().int().min(0).max(1000).optional(),
     maxTeams: zod_1.z.number().int().min(1).max(1000).optional(),
     isActive: zod_1.z.boolean().optional(),
+});
+exports.mentorGroupSchema = zod_1.z.object({
+    mainMentorId: zod_1.z.string().min(1),
+    coMentorIds: zod_1.z.array(zod_1.z.string().min(1)).max(10).default([]),
 });

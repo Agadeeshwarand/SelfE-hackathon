@@ -222,6 +222,7 @@ async function mentorAllocationExport(query) {
         orderBy: { assignedAt: "desc" },
         include: {
             mentor: { include: { user: true } },
+            mentorGroup: { include: { mainMentor: { select: { fullName: true } }, members: { include: { mentor: { select: { id: true, fullName: true } } } } } },
             team: { include: { members: { include: { student: true } } } },
         },
     });
@@ -249,8 +250,14 @@ async function mentorTeamMembersExport(query) {
     const format = parseFormat(query.format);
     const assignmentWhere = {};
     const mentorId = typeof query.mentorId === "string" ? query.mentorId.trim() : "";
-    if (mentorId)
-        assignmentWhere.mentorId = mentorId;
+    if (mentorId) {
+        const mentor = await prisma_1.prisma.mentorProfile.findUnique({ where: { id: mentorId }, include: { mainMentorGroup: true, mentorGroupMembership: true } });
+        const groupId = mentor?.mainMentorGroup?.id ?? mentor?.mentorGroupMembership?.groupId;
+        if (groupId)
+            assignmentWhere.mentorGroupId = groupId;
+        else
+            assignmentWhere.mentorId = mentorId;
+    }
     const teamWhere = teamWhereFromQuery(query);
     if (Object.keys(teamWhere).length)
         assignmentWhere.team = teamWhere;
@@ -262,6 +269,20 @@ async function mentorTeamMembersExport(query) {
         ],
         include: {
             mentor: { include: { user: true } },
+            mentorGroup: {
+                include: {
+                    mainMentor: {
+                        select: { id: true, fullName: true },
+                    },
+                    members: {
+                        include: {
+                            mentor: {
+                                select: { id: true, fullName: true },
+                            },
+                        },
+                    },
+                },
+            },
             team: {
                 include: {
                     members: {
@@ -279,7 +300,8 @@ async function mentorTeamMembersExport(query) {
         },
     });
     const columns = [
-        { header: "Mentor Name", key: "mentorName", width: 26 },
+        { header: "Main Mentor", key: "mentorName", width: 26 },
+        { header: "Co-Mentors", key: "coMentors", width: 36 },
         { header: "Team Name", key: "teamName", width: 26 },
         { header: "Team Code", key: "teamCode", width: 18 },
         { header: "Team Leader", key: "teamLeader", width: 26 },
@@ -292,7 +314,8 @@ async function mentorTeamMembersExport(query) {
         const leader = assignment.team.members.find((member) => member.isLeader)?.student.fullName ?? "";
         for (const member of assignment.team.members) {
             rows.push({
-                mentorName: assignment.mentor.fullName,
+                mentorName: assignment.mentorGroup?.mainMentor?.fullName ?? assignment.mentor.fullName,
+                coMentors: (assignment.mentorGroup?.members ?? []).filter((member) => member.mentor.id !== (assignment.mentorGroup?.mainMentorId ?? assignment.mentor.id)).map((member) => member.mentor.fullName).join(", "),
                 teamName: assignment.team.name,
                 teamCode: assignment.team.teamCode,
                 teamLeader: leader,
@@ -342,8 +365,14 @@ async function attendanceExport(query) {
         where.attendanceDate = attendanceDate;
     }
     const mentorId = typeof query.mentorId === "string" ? query.mentorId.trim() : "";
-    if (mentorId)
-        where.mentorId = mentorId;
+    if (mentorId) {
+        const mentor = await prisma_1.prisma.mentorProfile.findUnique({ where: { id: mentorId }, include: { mainMentorGroup: true, mentorGroupMembership: true } });
+        const groupId = mentor?.mainMentorGroup?.id ?? mentor?.mentorGroupMembership?.groupId;
+        if (groupId)
+            where.mentorGroupId = groupId;
+        else
+            where.mentorId = mentorId;
+    }
     if (query.status === "DRAFT" || query.status === "SUBMITTED") {
         where.status = query.status;
     }
@@ -352,6 +381,8 @@ async function attendanceExport(query) {
         orderBy: [{ attendanceDate: "desc" }, { createdAt: "desc" }],
         include: {
             mentor: { select: { fullName: true } },
+            mentorGroup: { include: { mainMentor: { select: { fullName: true } }, members: { include: { mentor: { select: { id: true, fullName: true } } } } } },
+            submittedByMentor: { select: { fullName: true } },
             records: {
                 orderBy: [
                     { team: { name: "asc" } },
@@ -378,7 +409,8 @@ async function attendanceExport(query) {
     const columns = [
         { header: "Date", key: "date", width: 14 },
         { header: "Session", key: "session", width: 28 },
-        { header: "Mentor", key: "mentor", width: 26 },
+        { header: "Main Mentor", key: "mentor", width: 26 },
+        { header: "Co-Mentors", key: "coMentors", width: 36 },
         { header: "Team Name", key: "teamName", width: 24 },
         { header: "Team Code", key: "teamCode", width: 18 },
         { header: "Team Leader", key: "teamLeader", width: 26 },
@@ -387,6 +419,7 @@ async function attendanceExport(query) {
         { header: "Department", key: "department", width: 20 },
         { header: "Status", key: "status", width: 14 },
         { header: "Marked At", key: "markedAt", width: 24 },
+        { header: "Submitted By", key: "submittedBy", width: 24 },
         { header: "Submission Status", key: "submissionStatus", width: 20 },
     ];
     const rows = [];
@@ -396,7 +429,8 @@ async function attendanceExport(query) {
             rows.push({
                 date: session.attendanceDate.toISOString().slice(0, 10),
                 session: session.sessionName,
-                mentor: session.mentor.fullName,
+                mentor: session.mentorGroup?.mainMentor?.fullName ?? session.mentor.fullName,
+                coMentors: (session.mentorGroup?.members ?? []).filter((member) => member.mentor.id !== (session.mentorGroup?.mainMentor?.id ?? session.mentor.id)).map((member) => member.mentor.fullName).join(", "),
                 teamName: record.team.name,
                 teamCode: record.team.teamCode,
                 teamLeader: leader,
@@ -405,6 +439,7 @@ async function attendanceExport(query) {
                 department: record.student.department.name,
                 status: record.status,
                 markedAt: record.markedAt.toISOString(),
+                submittedBy: session.submittedByMentor?.fullName ?? "—",
                 submissionStatus: session.status,
             });
         }
