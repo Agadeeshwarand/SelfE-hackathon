@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "node node_modules/prisma/build/index.js generate && node node_modules/prisma/build/index.js db push --accept-data-loss && node node_modules/tsx/dist/cli.mjs prisma/seed.ts && node node_modules/typescript/bin/tsc -p tsconfig.json",
+    "start": "node dist/index.js",
     "prisma:generate": "node node_modules/prisma/build/index.js generate",
     "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev",
     "prisma:studio": "node node_modules/prisma/build/index.js studio",
@@ -17,7 +18,7 @@
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
